@@ -1,14 +1,16 @@
 class CategoryModel {
   final int? id;
   final String name;
-  final int iconCode; // Храним код иконки (например, 58234)
-  final bool isDefault; // Чтобы нельзя было удалить базовые (по желанию)
+  final int iconCode;
+  final bool isDefault;
+  final double budgetLimit; // <--- НОВОЕ ПОЛЕ
 
   CategoryModel({
     this.id,
     required this.name,
     required this.iconCode,
     this.isDefault = false,
+    this.budgetLimit = 0.0, // <--- По умолчанию 0 (без лимита)
   });
 
   Map<String, dynamic> toMap() {
@@ -17,6 +19,7 @@ class CategoryModel {
       'name': name,
       'iconCode': iconCode,
       'isDefault': isDefault ? 1 : 0,
+      'budgetLimit': budgetLimit, // <--- Добавили
     };
   }
 
@@ -26,6 +29,8 @@ class CategoryModel {
       name: map['name'],
       iconCode: map['iconCode'],
       isDefault: map['isDefault'] == 1,
+      // Если в старой базе нет этого поля, берем 0.0
+      budgetLimit: (map['budgetLimit'] as num?)?.toDouble() ?? 0.0, 
     );
   }
 }

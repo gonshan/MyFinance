@@ -1,14 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme.dart';
 import '../../core/providers/transaction_provider.dart';
 import '../../data/models/transaction_model.dart';
-import '../../data/models/category_model.dart'; // Импорт категорий
+import '../screens/categories_screen.dart'; // <--- Вернули импорт!
+// Экран сканера здесь больше не нужен, мы убрали кнопку
 
 class AddTransactionSheet extends StatefulWidget {
-  final TransactionModel? transaction;
+  final TransactionModel? transaction; 
+  final double? scannedAmount;
+  final DateTime? scannedDate;
+  final String? scannedCategory;
 
-  const AddTransactionSheet({Key? key, this.transaction}) : super(key: key);
+  const AddTransactionSheet({
+    super.key, // Используем super.key для краткости
+    this.transaction, 
+    this.scannedAmount,
+    this.scannedDate,
+    this.scannedCategory,
+  });
 
   @override
   State<AddTransactionSheet> createState() => _AddTransactionSheetState();
@@ -17,27 +28,41 @@ class AddTransactionSheet extends StatefulWidget {
 class _AddTransactionSheetState extends State<AddTransactionSheet> {
   String _amount = '0';
   bool _isIncome = false;
-  String _selectedCategory = ''; // Теперь пустая по умолчанию
+  String _selectedCategory = '';
+  DateTime _selectedDate = DateTime.now();
 
   @override
   void initState() {
     super.initState();
     final provider = Provider.of<TransactionProvider>(context, listen: false);
     
-    // Если список категорий загружен, берем первую
+    // 1. Категория по умолчанию
     if (provider.categories.isNotEmpty) {
       _selectedCategory = provider.categories.first.name;
     }
 
+    // 2. Заполнение данными
     if (widget.transaction != null) {
       _isIncome = widget.transaction!.isIncome;
       _selectedCategory = widget.transaction!.category;
-      String amountStr = widget.transaction!.amount.toString();
-      if (amountStr.endsWith('.0')) {
-        amountStr = amountStr.substring(0, amountStr.length - 2);
+      _selectedDate = widget.transaction!.date;
+      _amount = _formatAmount(widget.transaction!.amount);
+    
+    } else if (widget.scannedAmount != null) {
+      _isIncome = false;
+      _amount = _formatAmount(widget.scannedAmount!);
+      if (widget.scannedDate != null) _selectedDate = widget.scannedDate!;
+      if (widget.scannedCategory != null) {
+         bool exists = provider.categories.any((c) => c.name == widget.scannedCategory);
+         if (exists) _selectedCategory = widget.scannedCategory!;
       }
-      _amount = amountStr;
     }
+  }
+
+  String _formatAmount(double value) {
+    String str = value.toString();
+    if (str.endsWith('.0')) return str.substring(0, str.length - 2);
+    return str;
   }
 
   void _onKeyTap(String value) {
@@ -58,6 +83,28 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
         }
       }
     });
+  }
+
+  Future<void> _pickDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: const ColorScheme.light(primary: AppColors.primaryMint),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
   }
 
   void _saveTransaction() {
@@ -86,31 +133,26 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
        }
     }
 
+    final transaction = TransactionModel(
+      id: widget.transaction?.id,
+      amount: value,
+      category: _selectedCategory,
+      date: _selectedDate,
+      isIncome: _isIncome,
+    );
+
     if (widget.transaction == null) {
-      final newTransaction = TransactionModel(
-        amount: value,
-        category: _selectedCategory,
-        date: DateTime.now(),
-        isIncome: _isIncome,
-      );
-      provider.addTransaction(newTransaction);
+      provider.addTransaction(transaction);
     } else {
-      final updatedTransaction = TransactionModel(
-        id: widget.transaction!.id,
-        amount: value,
-        category: _selectedCategory,
-        date: widget.transaction!.date,
-        isIncome: _isIncome,
-      );
-      provider.editTransaction(updatedTransaction);
+      provider.editTransaction(transaction);
     }
     Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
-    // Получаем категории из провайдера
-    final categories = Provider.of<TransactionProvider>(context).categories;
+    // Используем watch, чтобы список обновился, если мы добавим категорию и вернемся
+    final categories = context.watch<TransactionProvider>().categories;
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.9,
@@ -121,17 +163,20 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
       child: Column(
         children: [
           const SizedBox(height: 10),
-          Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.textGrey.withOpacity(0.3), borderRadius: BorderRadius.circular(2))),
+          Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.textGrey.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 20),
+          
           Expanded(
             child: SingleChildScrollView(
               child: Column(
                 children: [
                   Text(
-                    widget.transaction == null ? "Новая операция" : "Редактирование",
+                    widget.transaction != null ? "Редактирование" : (widget.scannedAmount != null ? "Сканированный чек" : "Новая операция"),
                     style: const TextStyle(fontSize: 16, color: AppColors.textGrey, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 15),
+                  
+                  // Переключатель
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -141,21 +186,83 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
                     ],
                   ),
                   const SizedBox(height: 20),
+                  
+                  // СУММА (Кнопку QR убрали)
                   Text(
                     "$_amount BYN",
-                    style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: _isIncome ? AppColors.primaryMint : AppColors.secondarySalmon),
+                    style: TextStyle(
+                      fontSize: 48, 
+                      fontWeight: FontWeight.bold, 
+                      color: _isIncome ? AppColors.primaryMint : AppColors.secondarySalmon
+                    ),
                   ),
-                  const SizedBox(height: 20),
-                  
-                  // Скролл категорий из базы
+
+                  // ДАТА
+                  GestureDetector(
+                    onTap: _pickDate,
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.textGrey.withValues(alpha: 0.2)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.textGrey),
+                          const SizedBox(width: 8),
+                          Text(
+                            DateFormat('d MMMM yyyy', 'ru').format(_selectedDate),
+                            style: const TextStyle(color: AppColors.textDark, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // СКРОЛЛ КАТЕГОРИЙ + КНОПКА НАСТРОЙКИ (В КОНЦЕ)
                   SizedBox(
-                    height: 90, // Чуть увеличили высоту
+                    height: 90,
                     child: ListView.separated(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       scrollDirection: Axis.horizontal,
-                      itemCount: categories.length,
+                      // +1 элемент для кнопки настроек
+                      itemCount: categories.length + 1,
                       separatorBuilder: (c, i) => const SizedBox(width: 15),
                       itemBuilder: (context, index) {
+                        
+                        // Если это последний элемент — рисуем кнопку Настройки
+                        if (index == categories.length) {
+                          return GestureDetector(
+                            onTap: () {
+                              // Переход к управлению категориями
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const CategoriesScreen()),
+                              );
+                            },
+                            child: Column(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surface,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: AppColors.textGrey.withValues(alpha: 0.3)),
+                                  ),
+                                  child: const Icon(Icons.settings_rounded, color: AppColors.textGrey),
+                                ),
+                                const SizedBox(height: 5),
+                                const Text("Меню", style: TextStyle(fontSize: 10, color: AppColors.textGrey)),
+                              ],
+                            ),
+                          );
+                        }
+
+                        // Иначе рисуем обычную категорию
                         final cat = categories[index];
                         final isSelected = _selectedCategory == cat.name;
                         return GestureDetector(
@@ -170,10 +277,9 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
                                       : AppColors.surface,
                                   shape: BoxShape.circle,
                                   boxShadow: isSelected ? [
-                                    BoxShadow(color: (_isIncome ? AppColors.primaryMint : AppColors.secondarySalmon).withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 5))
+                                    BoxShadow(color: (_isIncome ? AppColors.primaryMint : AppColors.secondarySalmon).withValues(alpha: 0.4), blurRadius: 10, offset: const Offset(0, 5))
                                   ] : [],
                                 ),
-                                // Восстанавливаем иконку из кода
                                 child: Icon(
                                   IconData(cat.iconCode, fontFamily: 'MaterialIcons'), 
                                   color: isSelected ? Colors.white : AppColors.textGrey,
@@ -189,6 +295,8 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
                   ),
 
                   const SizedBox(height: 20),
+                  
+                  // КЛАВИАТУРА
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: const BoxDecoration(

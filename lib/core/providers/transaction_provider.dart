@@ -36,8 +36,13 @@ class TransactionProvider extends ChangeNotifier {
   }
 
   // Категории
-  Future<void> addCategory(String name, int iconCode) async {
-    final newCat = CategoryModel(name: name, iconCode: iconCode, isDefault: false);
+  Future<void> addCategory(String name, int iconCode, double limit) async {
+    final newCat = CategoryModel(
+      name: name, 
+      iconCode: iconCode, 
+      isDefault: false,
+      budgetLimit: limit, // <--- Записываем лимит
+    );
     await DatabaseService.instance.createCategory(newCat);
     await loadData();
   }
@@ -46,4 +51,12 @@ class TransactionProvider extends ChangeNotifier {
     await DatabaseService.instance.deleteCategory(id);
     await loadData();
   }
-}
+
+  // ... (предыдущий код)
+
+  // Обновление категории (например, для установки лимита)
+  Future<void> updateCategory(CategoryModel category) async {
+    await DatabaseService.instance.updateCategory(category);
+    await loadData(); // Перезагружаем список, чтобы UI обновился
+  }
+} // конец класса

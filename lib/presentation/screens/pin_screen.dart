@@ -1,27 +1,33 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:local_auth/local_auth.dart'; // Биометрия
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme.dart';
-import 'home_screen.dart';
 import 'main_wrapper.dart';
 
 class PinScreen extends StatefulWidget {
-  const PinScreen({Key? key}) : super(key: key);
+  const PinScreen({super.key});
 
   @override
   State<PinScreen> createState() => _PinScreenState();
 }
 
-class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMixin {
+class _PinScreenState extends State<PinScreen>
+    with SingleTickerProviderStateMixin {
   String _enteredPin = '';
   String? _storedPin;
   bool _isLoading = true;
-  
-  bool _isError = false; 
+  bool _isError = false;
   late AnimationController _shakeController;
 
-  // --- БЛОКИРОВКА ---
+  // Биометрия
+  final LocalAuthentication auth = LocalAuthentication();
+  bool _canCheckBiometrics = false; // Есть ли "железо"
+  bool _isBiometricsEnabled = false; // Включил ли юзер в настройках
+
+  // Блокировка
   int _failedAttempts = 0;
   DateTime? _lockoutEndTime;
   Timer? _timer;
@@ -30,13 +36,10 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
   @override
   void initState() {
     super.initState();
-    _checkLoginStatus();
-
     _shakeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    
     _shakeController.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         setState(() {
@@ -46,6 +49,8 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
         });
       }
     });
+
+    _checkLoginStatus();
   }
 
   @override
@@ -58,13 +63,30 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
   Future<void> _checkLoginStatus() async {
     final prefs = await SharedPreferences.getInstance();
     final pin = prefs.getString('user_pin');
-    
+
+    // Читаем настройку пользователя (по умолчанию false)
+    final useBio = prefs.getBool('use_biometrics') ?? false;
+
+    // Проверка блокировки
     final lockoutMillis = prefs.getInt('lockout_end_time');
     final attempts = prefs.getInt('failed_attempts') ?? 0;
+
+    // Проверка доступности биометрии ("железо")
+    bool canCheck = false;
+    try {
+      canCheck =
+          await auth.canCheckBiometrics && await auth.isDeviceSupported();
+    } catch (e) {
+      debugPrint("Ошибка биометрии: $e");
+    }
+
+    if (!mounted) return;
 
     setState(() {
       _storedPin = pin;
       _failedAttempts = attempts;
+      _canCheckBiometrics = canCheck;
+      _isBiometricsEnabled = useBio; // Сохраняем настройку в состояние
       _isLoading = false;
     });
 
@@ -76,6 +98,30 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
       } else {
         _resetLockout(prefs);
       }
+    } else {
+      // АВТОЗАПУСК: Если есть пин, железо позволяет И юзер включил настройку
+      if (_storedPin != null && _canCheckBiometrics && _isBiometricsEnabled) {
+        _authenticate();
+      }
+    }
+  }
+
+  // Метод вызова биометрии
+  Future<void> _authenticate() async {
+    try {
+      final bool didAuthenticate = await auth.authenticate(
+        localizedReason: 'Сканируйте отпечаток или лицо для входа',
+        options: const AuthenticationOptions(
+          biometricOnly: false,
+          stickyAuth: true,
+        ),
+      );
+
+      if (didAuthenticate) {
+        _navigateToHome();
+      }
+    } on PlatformException catch (e) {
+      debugPrint("Ошибка авторизации: $e");
     }
   }
 
@@ -138,10 +184,12 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
     await Future.delayed(const Duration(milliseconds: 150));
 
     if (_storedPin == null) {
+      // Создание нового пина
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_pin', _enteredPin);
       _navigateToHome();
     } else {
+      // Проверка существующего
       if (_enteredPin == _storedPin) {
         final prefs = await SharedPreferences.getInstance();
         await _resetLockout(prefs);
@@ -153,21 +201,23 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
 
         if (_failedAttempts >= 5) {
           final endTime = DateTime.now().add(const Duration(minutes: 2));
-          await prefs.setInt('lockout_end_time', endTime.millisecondsSinceEpoch);
-          
+          await prefs.setInt(
+            'lockout_end_time',
+            endTime.millisecondsSinceEpoch,
+          );
+
           setState(() {
             _lockoutEndTime = endTime;
             _isError = true;
           });
           _startTimer();
-          
+
           Future.delayed(const Duration(milliseconds: 500), () {
-             setState(() {
-               _enteredPin = '';
-               _isError = false;
-             });
+            setState(() {
+              _enteredPin = '';
+              _isError = false;
+            });
           });
-          
         } else {
           setState(() {
             _isError = true;
@@ -179,14 +229,16 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
   }
 
   void _navigateToHome() {
-  Navigator.of(context).pushReplacement(
-    MaterialPageRoute(builder: (context) => const MainWrapper()), // БЫЛО: HomeScreen
-  );
-}
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => const MainWrapper()),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const Scaffold(backgroundColor: AppColors.background);
+    if (_isLoading)
+      return const Scaffold(backgroundColor: AppColors.background);
 
     final isCreating = _storedPin == null;
     final isLocked = _lockoutEndTime != null;
@@ -201,37 +253,54 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const Spacer(flex: 2),
-              
+
               if (isLocked) ...[
-                const Icon(Icons.lock_clock_rounded, size: 80, color: AppColors.secondarySalmon),
+                const Icon(
+                  Icons.lock_clock_rounded,
+                  size: 80,
+                  color: AppColors.secondarySalmon,
+                ),
                 const SizedBox(height: 20),
                 const Text(
                   "Приложение заблокировано",
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.secondarySalmon),
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.secondarySalmon,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Text(
                   "Попробуйте через $_timerText",
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 18, color: AppColors.textGrey),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    color: AppColors.textGrey,
+                  ),
                 ),
               ] else ...[
                 Icon(
-                  isCreating ? Icons.lock_outline_rounded : Icons.lock_open_rounded, 
-                  size: 40, 
-                  color: _isError ? AppColors.secondarySalmon : AppColors.primaryMint
+                  isCreating
+                      ? Icons.lock_outline_rounded
+                      : Icons.lock_open_rounded,
+                  size: 40,
+                  color: _isError
+                      ? AppColors.secondarySalmon
+                      : AppColors.primaryMint,
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  _isError 
-                    ? "Неверный код (${5 - _failedAttempts} поп.)" 
-                    : (isCreating ? "Придумайте код" : "Введите код"),
+                  _isError
+                      ? "Неверный код (${5 - _failedAttempts} поп.)"
+                      : (isCreating ? "Придумайте код" : "Введите код"),
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 18, 
-                    fontWeight: FontWeight.bold, 
-                    color: _isError ? AppColors.secondarySalmon : AppColors.textDark
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: _isError
+                        ? AppColors.secondarySalmon
+                        : AppColors.textDark,
                   ),
                 ),
               ],
@@ -258,12 +327,16 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
                         width: 14,
                         height: 14,
                         decoration: BoxDecoration(
-                          color: isFilled 
-                              ? (_isError ? AppColors.secondarySalmon : AppColors.textDark) 
+                          color: isFilled
+                              ? (_isError
+                                    ? AppColors.secondarySalmon
+                                    : AppColors.textDark)
                               : Colors.transparent,
                           border: Border.all(
-                            color: _isError ? AppColors.secondarySalmon : AppColors.textDark, 
-                            width: 2
+                            color: _isError
+                                ? AppColors.secondarySalmon
+                                : AppColors.textDark,
+                            width: 2,
                           ),
                           shape: BoxShape.circle,
                         ),
@@ -289,7 +362,27 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const SizedBox(width: 65),
+                          // Кнопка биометрии (слева от 0)
+                          // Показываем только если ПИН создан, железо есть И ВКЛЮЧЕНО В НАСТРОЙКАХ
+                          SizedBox(
+                            width: 65,
+                            height: 65,
+                            child:
+                                (_storedPin != null &&
+                                    _canCheckBiometrics &&
+                                    _isBiometricsEnabled)
+                                ? InkWell(
+                                    onTap: _authenticate,
+                                    borderRadius: BorderRadius.circular(35),
+                                    child: const Icon(
+                                      Icons.fingerprint_rounded,
+                                      size: 36,
+                                      color: AppColors.primaryMint,
+                                    ),
+                                  )
+                                : null, // Иначе пустое место
+                          ),
+
                           _buildKey('0'),
                           _buildBackspace(),
                         ],
@@ -297,7 +390,7 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
                     ),
                   ],
                 ),
-              
+
               const SizedBox(height: 40),
             ],
           ),
@@ -321,14 +414,15 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
       onTap: () => _onKeyTap(val),
       borderRadius: BorderRadius.circular(35),
       child: Container(
-        width: 65, height: 65,
+        width: 65,
+        height: 65,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: AppColors.surface,
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 5,
               offset: const Offset(2, 2),
             ),
@@ -339,10 +433,13 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
             ),
           ],
         ),
-        // УВЕЛИЧИЛИ ШРИФТ ДО 32
         child: Text(
-          val, 
-          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: AppColors.textDark)
+          val,
+          style: const TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textDark,
+          ),
         ),
       ),
     );
@@ -353,10 +450,14 @@ class _PinScreenState extends State<PinScreen> with SingleTickerProviderStateMix
       onTap: _onBackspace,
       borderRadius: BorderRadius.circular(35),
       child: Container(
-        width: 65, height: 65,
+        width: 65,
+        height: 65,
         alignment: Alignment.center,
-        // УВЕЛИЧИЛИ ИКОНКУ ДО 28
-        child: const Icon(Icons.backspace_rounded, color: AppColors.textGrey, size: 28),
+        child: const Icon(
+          Icons.backspace_rounded,
+          color: AppColors.textGrey,
+          size: 28,
+        ),
       ),
     );
   }

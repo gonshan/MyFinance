@@ -12,7 +12,7 @@ class DatabaseService {
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDB('myfinance_v2.db'); // Сменил имя, чтобы создать новую БД
+    _database = await _initDB('myfinance_v2.db');
     return _database!;
   }
 
@@ -21,12 +21,14 @@ class DatabaseService {
     final path = join(dbPath, filePath);
 
     return await openDatabase(
-      path, 
-      version: 1, 
+      path,
+      version: 2, // <--- УВЕЛИЧИЛИ ВЕРСИЮ! БЫЛО 1
       onCreate: _createDB,
+      onUpgrade: _onUpgrade, // <--- ДОБАВИЛИ ОБРАБОТЧИК ОБНОВЛЕНИЯ
     );
   }
 
+  // Срабатывает, если базы нет вообще (новая установка)
   Future _createDB(Database db, int version) async {
     const idType = 'INTEGER PRIMARY KEY AUTOINCREMENT';
     const textType = 'TEXT NOT NULL';
@@ -45,18 +47,28 @@ class DatabaseService {
       )
     ''');
 
-    // 2. Таблица категорий
+    // 2. Таблица категорий (СРАЗУ С budgetLimit)
     await db.execute('''
       CREATE TABLE categories (
         id $idType,
         name $textType,
         iconCode $intType,
-        isDefault $intType
+        isDefault $intType,
+        budgetLimit $realType DEFAULT 0.0
       )
     ''');
 
     // 3. Заполняем категории по умолчанию
     await _seedCategories(db);
+  }
+
+  // Срабатывает, если у юзера версия 1, а мы выкатили версию 2
+  Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Добавляем колонку budgetLimit в существующую таблицу
+      await db.execute('ALTER TABLE categories ADD COLUMN budgetLimit REAL DEFAULT 0.0');
+      print("Миграция БД: добавлено поле budgetLimit");
+    }
   }
 
   Future<void> _seedCategories(Database db) async {
@@ -121,5 +133,11 @@ class DatabaseService {
   Future<int> deleteCategory(int id) async {
     final db = await instance.database;
     return await db.delete('categories', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // НОВЫЙ МЕТОД: Обновление категории (для лимитов)
+  Future<int> updateCategory(CategoryModel category) async {
+    final db = await instance.database;
+    return await db.update('categories', category.toMap(), where: 'id = ?', whereArgs: [category.id]);
   }
 }

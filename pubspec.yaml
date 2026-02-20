@@ -33,10 +33,22 @@ dependencies:
   sqflite: ^2.3.0  # Сама база данных
   path: ^1.8.3     # Помощник для поиска путей к файлам на Android/iOS
   google_fonts: ^6.1.0
-  intl: ^0.19.0  # Для форматирования денег
+  
+  # 👇 ВОТ ЗДЕСЬ МЕНЯЕМ ВЕРСИЮ 👇
+  intl: ^0.20.2  
+  
   provider: ^6.1.1
   fl_chart: ^0.66.0
   shared_preferences: ^2.2.2
+  mobile_scanner: ^5.1.0
+  pdf: ^3.10.4
+  printing: ^5.11.1
+  local_auth: ^2.3.0
+  flutter_local_notifications: ^17.2.2
+  timezone: ^0.9.2
+  flutter_timezone: ^3.0.1
+  flutter_localizations:
+    sdk: flutter
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -45,13 +57,26 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
-  # The "flutter_lints" package below contains a set of recommended lints to
-  # encourage good coding practices. The lint set provided by the package is
-  # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
-  # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.0
+
+# Настройки для иконки
+# Настройки иконок 
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon.png" # Базовая картинка для iOS и старых Android
+  adaptive_icon_background: "#F8F9FA" # Цвет фона для новых Android (от 8.0+)
+  adaptive_icon_foreground: "assets/icon_foreground.png" # Прозрачный логотип для новых Android
+
+flutter_native_splash:
+  color: "#F8F9FA" 
+  image: "assets/icon_foreground.png" 
+  android: true
+  ios: true
+
+flutter_lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

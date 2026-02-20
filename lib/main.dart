@@ -1,54 +1,69 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Для настройки статус бара
-import 'package:google_fonts/google_fonts.dart'; // Шрифты
-import 'package:provider/provider.dart'; // Управление состоянием
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // <--- ДОБАВИЛИ ИМПОРТ
 
-// Импорты наших файлов
 import 'core/theme.dart';
 import 'core/providers/transaction_provider.dart';
-import 'presentation/screens/pin_screen.dart'; // Экран ввода PIN-кода
+import 'core/services/notification_service.dart';
+import 'presentation/screens/pin_screen.dart';
+import 'presentation/screens/onboarding_screen.dart'; // <--- ДОБАВИЛИ ИМПОРТ
 
-void main() {
-  // Обязательно вызываем это перед использованием системных каналов (SystemChrome)
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Настраиваем прозрачный статус бар (верхняя полоска с часами),
-  // чтобы фон приложения заходил под него.
+  await initializeDateFormatting('ru', null);
+  await NotificationService().init();
+
+  // Проверяем, первый ли это запуск
+  final prefs = await SharedPreferences.getInstance();
+  final bool isFirstRun =
+      prefs.getBool('is_first_run') ??
+      true; // По умолчанию true (первый запуск)
+
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent, // Прозрачный фон
-      statusBarIconBrightness: Brightness.dark, // Темные иконки (часы, заряд)
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
     ),
   );
 
-  // Запускаем приложение
-  runApp(const MyApp());
+  runApp(MyApp(isFirstRun: isFirstRun)); // Передаем результат в MyApp
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool isFirstRun; // <--- ПРИНИМАЕМ ПЕРЕМЕННУЮ
+
+  const MyApp({super.key, required this.isFirstRun});
 
   @override
   Widget build(BuildContext context) {
-    // MultiProvider позволяет "раздавать" данные (транзакции, баланс)
-    // на любой экран приложения.
     return MultiProvider(
       providers: [ChangeNotifierProvider(create: (_) => TransactionProvider())],
       child: MaterialApp(
         title: 'MyFinance',
-        debugShowCheckedModeBanner: false, // Убираем красную ленточку DEBUG
-        // Настройка глобальной темы
+        debugShowCheckedModeBanner: false,
+
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [Locale('ru', 'RU')],
+        locale: const Locale('ru', 'RU'),
+
         theme: ThemeData(
-          scaffoldBackgroundColor: AppColors.background, // Наш фирменный фон
+          scaffoldBackgroundColor: AppColors.background,
           primaryColor: AppColors.primaryMint,
-          // Применяем шрифт Nunito ко всем текстовым стилям
           textTheme: GoogleFonts.nunitoTextTheme(Theme.of(context).textTheme),
-          useMaterial3: true, // Используем современный Material 3
+          useMaterial3: true,
         ),
 
-        // ВАЖНО: Точка входа в приложение — Экран PIN-кода
-        // Если PIN не задан — предложит создать. Если задан — попросит ввести.
-        home: const PinScreen(),
+        // 👇 ВЫБИРАЕМ СТАРТОВЫЙ ЭКРАН 👇
+        home: isFirstRun ? const OnboardingScreen() : const PinScreen(),
       ),
     );
   }

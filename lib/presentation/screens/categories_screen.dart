@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme.dart';
+import '../../core/constants.dart'; // <--- НОВЫЙ ИМПОРТ КОНСТАНТ
 import '../../core/providers/transaction_provider.dart';
 import '../../data/models/category_model.dart';
 import '../widgets/neumorphic_card.dart';
@@ -13,249 +14,14 @@ class CategoriesScreen extends StatefulWidget {
 }
 
 class _CategoriesScreenState extends State<CategoriesScreen> {
-  // Список доступных иконок
-  final List<IconData> availableIcons = [
-    Icons.fastfood_rounded,
-    Icons.directions_bus_rounded,
-    Icons.home_rounded,
-    Icons.movie_rounded,
-    Icons.favorite_rounded,
-    Icons.attach_money_rounded,
-    Icons.card_giftcard_rounded,
-    Icons.shopping_cart_rounded,
-    Icons.flight_rounded,
-    Icons.pets_rounded,
-    Icons.school_rounded,
-    Icons.sports_esports_rounded,
-    Icons.fitness_center_rounded,
-    Icons.local_cafe_rounded,
-    Icons.build_rounded,
-    Icons.local_gas_station_rounded,
-    Icons.local_hospital_rounded,
-    Icons.child_friendly_rounded,
-  ];
-
-  // Универсальный диалог для СОЗДАНИЯ и РЕДАКТИРОВАНИЯ
+  
   void _showCategoryDialog({CategoryModel? category}) {
-    final isEditing = category != null;
-    String name = category?.name ?? '';
-    double limit = category?.budgetLimit ?? 0.0;
-    IconData selectedIcon = category != null
-        ? IconData(category.iconCode, fontFamily: 'MaterialIcons')
-        : availableIcons[0];
-
-    // Контроллеры для полей
-    final nameController = TextEditingController(text: name);
-    final limitController = TextEditingController(
-      text: limit > 0 ? limit.toStringAsFixed(0) : '',
-    );
-
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          backgroundColor: AppColors.background,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(
-            isEditing ? "Редактировать" : "Новая категория",
-            style: const TextStyle(
-              color: AppColors.textDark,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. Имя (Заголовок отдельно)
-                const Text(
-                  "Название",
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textGrey,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: nameController,
-                  decoration: InputDecoration(
-                    hintText: "Например: Еда",
-                    hintStyle: TextStyle(
-                      color: AppColors.textGrey.withValues(alpha: 0.5),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                  onChanged: (val) => name = val,
-                ),
-                const SizedBox(height: 20),
-
-                // 2. Лимит бюджета (Заголовок отдельно)
-                const Text(
-                  "Месячный бюджет (BYN)",
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textGrey,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: limitController,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    hintText: "0 - без лимита",
-                    hintStyle: TextStyle(
-                      color: AppColors.textGrey.withValues(alpha: 0.5),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    suffixIcon: const Icon(
-                      Icons.attach_money,
-                      color: AppColors.primaryMint,
-                    ),
-                  ),
-                  onChanged: (val) {
-                    if (val.isEmpty) {
-                      limit = 0.0;
-                    } else {
-                      limit = double.tryParse(val) ?? 0.0;
-                    }
-                  },
-                ),
-                const SizedBox(height: 20),
-
-                // 3. Выбор иконки
-                const Text(
-                  "Выберите иконку:",
-                  style: TextStyle(
-                    color: AppColors.textGrey,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  height: 150,
-                  width: double.maxFinite,
-                  child: GridView.builder(
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 5,
-                          mainAxisSpacing: 10,
-                          crossAxisSpacing: 10,
-                        ),
-                    itemCount: availableIcons.length,
-                    itemBuilder: (context, index) {
-                      final icon = availableIcons[index];
-                      final isSelected = selectedIcon == icon;
-                      return GestureDetector(
-                        onTap: () => setState(() => selectedIcon = icon),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppColors.primaryMint
-                                : Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: isSelected
-                                ? [
-                                    BoxShadow(
-                                      color: AppColors.primaryMint.withValues(
-                                        alpha: 0.4,
-                                      ),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ]
-                                : [],
-                          ),
-                          child: Icon(
-                            icon,
-                            color: isSelected
-                                ? Colors.white
-                                : AppColors.textGrey,
-                            size: 20,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                "Отмена",
-                style: TextStyle(color: AppColors.secondarySalmon),
-              ),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryMint,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                elevation: 0,
-              ),
-              onPressed: () {
-                if (name.isNotEmpty) {
-                  final provider = Provider.of<TransactionProvider>(
-                    context,
-                    listen: false,
-                  );
-
-                  if (isEditing) {
-                    // Обновляем существующую
-                    final updatedCat = CategoryModel(
-                      id: category.id,
-                      name: name,
-                      iconCode: selectedIcon.codePoint,
-                      isDefault: category.isDefault,
-                      budgetLimit: limit,
-                    );
-                    provider.updateCategory(updatedCat);
-                  } else {
-                    // Создаем новую
-                    provider.addCategory(
-                      name,
-                      selectedIcon.codePoint,
-                      limit,
-                    );
-                  }
-                  Navigator.pop(context);
-                }
-              },
-              child: Text(
-                isEditing ? "Сохранить" : "Создать",
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
+      builder: (ctx) => _CategoryDialog(
+        category: category,
+        // ИСПОЛЬЗУЕМ КОНСТАНТУ ИЗ constants.dart
+        availableIcons: AppConstants.availableCategoryIcons, 
       ),
     );
   }
@@ -288,6 +54,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         itemCount: provider.categories.length,
         itemBuilder: (context, index) {
           final cat = provider.categories[index];
+
           return Padding(
             padding: const EdgeInsets.only(bottom: 15),
             child: Dismissible(
@@ -320,9 +87,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                   vertical: 15,
                 ),
                 borderRadius: 15,
-                onTap: () => _showCategoryDialog(
-                  category: cat,
-                ), // ТАП ДЛЯ РЕДАКТИРОВАНИЯ
+                onTap: () => _showCategoryDialog(category: cat), // ТАП ДЛЯ РЕДАКТИРОВАНИЯ
                 child: Row(
                   children: [
                     Container(
@@ -363,9 +128,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                               "Без лимита",
                               style: TextStyle(
                                 fontSize: 12,
-                                color: AppColors.textGrey.withValues(
-                                  alpha: 0.5,
-                                ),
+                                color: AppColors.textGrey.withValues(alpha: 0.5),
                               ),
                             ),
                         ],
@@ -390,6 +153,241 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+class _CategoryDialog extends StatefulWidget {
+  final CategoryModel? category;
+  final List<IconData> availableIcons;
+
+  const _CategoryDialog({this.category, required this.availableIcons});
+
+  @override
+  State<_CategoryDialog> createState() => _CategoryDialogState();
+}
+
+class _CategoryDialogState extends State<_CategoryDialog> {
+  late TextEditingController _nameController;
+  late TextEditingController _limitController;
+  late IconData _selectedIcon;
+
+  bool get _isEditing => widget.category != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final cat = widget.category;
+    
+    _nameController = TextEditingController(text: cat?.name ?? '');
+    
+    final limit = cat?.budgetLimit ?? 0.0;
+    _limitController = TextEditingController(
+      text: limit > 0 ? limit.toStringAsFixed(0) : '',
+    );
+    
+    _selectedIcon = cat != null
+        ? IconData(cat.iconCode, fontFamily: 'MaterialIcons')
+        : widget.availableIcons[0];
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _limitController.dispose();
+    super.dispose();
+  }
+
+  void _saveCategory() {
+    final name = _nameController.text.trim();
+    final limitText = _limitController.text.trim();
+    double limit = 0.0;
+    
+    if (limitText.isNotEmpty) {
+      limit = double.tryParse(limitText) ?? 0.0;
+    }
+
+    if (name.isNotEmpty) {
+      final provider = Provider.of<TransactionProvider>(context, listen: false);
+      
+      if (_isEditing) {
+        final updatedCat = CategoryModel(
+          id: widget.category!.id,
+          name: name,
+          iconCode: _selectedIcon.codePoint,
+          isDefault: widget.category!.isDefault,
+          budgetLimit: limit,
+        );
+        provider.updateCategory(updatedCat);
+      } else {
+        provider.addCategory(name, _selectedIcon.codePoint, limit);
+      }
+      Navigator.pop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.background,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Text(
+        _isEditing ? "Редактировать" : "Новая категория",
+        style: const TextStyle(
+          color: AppColors.textDark,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 1. Имя
+            const Text(
+              "Название",
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.textGrey,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _nameController,
+              decoration: InputDecoration(
+                hintText: "Например: Еда",
+                hintStyle: TextStyle(
+                  color: AppColors.textGrey.withValues(alpha: 0.5),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // 2. Лимит бюджета
+            const Text(
+              "Месячный бюджет (BYN)",
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.textGrey,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _limitController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                hintText: "0 - без лимита",
+                hintStyle: TextStyle(
+                  color: AppColors.textGrey.withValues(alpha: 0.5),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                suffixIcon: const Icon(
+                  Icons.attach_money,
+                  color: AppColors.primaryMint,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // 3. Выбор иконки
+            const Text(
+              "Выберите иконку:",
+              style: TextStyle(
+                color: AppColors.textGrey,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 150,
+              width: double.maxFinite,
+              child: GridView.builder(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 5,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                ),
+                itemCount: widget.availableIcons.length,
+                itemBuilder: (context, index) {
+                  final icon = widget.availableIcons[index];
+                  final isSelected = _selectedIcon == icon;
+                  return GestureDetector(
+                    onTap: () => setState(() => _selectedIcon = icon),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppColors.primaryMint : Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: AppColors.primaryMint.withValues(alpha: 0.4),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ]
+                            : [],
+                      ),
+                      child: Icon(
+                        icon,
+                        color: isSelected ? Colors.white : AppColors.textGrey,
+                        size: 20,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text(
+            "Отмена",
+            style: TextStyle(color: AppColors.secondarySalmon),
+          ),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primaryMint,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            elevation: 0,
+          ),
+          onPressed: _saveCategory,
+          child: Text(
+            _isEditing ? "Сохранить" : "Создать",
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

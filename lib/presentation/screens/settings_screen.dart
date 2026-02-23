@@ -1,16 +1,18 @@
-import 'package:flutter/cupertino.dart'; // <--- НУЖЕН ДЛЯ БАРАБАНА
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart'; // <--- ИМПОРТ ПРОВАЙДЕРА
+
 import '../../core/theme.dart';
 import '../../core/services/notification_service.dart';
+import '../../core/providers/transaction_provider.dart'; // <--- ИМПОРТ ПРОВАЙДЕРА
 import '../widgets/neumorphic_card.dart';
 import 'categories_screen.dart';
 import 'pin_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
-
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
@@ -19,7 +21,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _useBiometrics = false;
   bool _canCheckBiometrics = false;
   
-  // Уведомления
   bool _notificationsEnabled = false;
   TimeOfDay _notificationTime = const TimeOfDay(hour: 20, minute: 0);
 
@@ -31,7 +32,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    
     final auth = LocalAuthentication();
     bool canCheck = false;
     try {
@@ -39,10 +39,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       // ignore
     }
-
     final int hour = prefs.getInt('notification_hour') ?? 20;
     final int minute = prefs.getInt('notification_minute') ?? 0;
-
+    
     setState(() {
       _useBiometrics = prefs.getBool('use_biometrics') ?? false;
       _notificationsEnabled = prefs.getBool('notifications_enabled') ?? false;
@@ -60,59 +59,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _toggleNotifications(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('notifications_enabled', value);
-    
     setState(() => _notificationsEnabled = value);
-
     if (value) {
-      await NotificationService().scheduleDailyNotification(
-        _notificationTime.hour, 
-        _notificationTime.minute
-      );
+      await NotificationService().scheduleDailyNotification(_notificationTime.hour, _notificationTime.minute);
       if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(
-           SnackBar(content: Text("Напоминание включено на ${_formatTime(_notificationTime)}"))
-         );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Напоминание включено на ${_formatTime(_notificationTime)}")));
       }
     } else {
       await NotificationService().cancelNotifications();
     }
   }
 
-  // --- НОВЫЙ МЕТОД ВЫБОРА ВРЕМЕНИ (БАРАБАН) ---
   void _pickTime() {
-    // Временная переменная, чтобы не менять настройки пока крутишь
     TimeOfDay tempTime = _notificationTime;
-
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
       builder: (BuildContext builder) {
         return Container(
           height: 300,
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
-              // Заголовок и кнопка Готово
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    "Выберите время",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textDark),
-                  ),
+                  const Text("Выберите время", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textDark)),
                   TextButton(
                     onPressed: () async {
-                      Navigator.pop(context); // Закрываем шторку
-                      
-                      // Сохраняем результат
+                      Navigator.pop(context);
                       setState(() => _notificationTime = tempTime);
                       final prefs = await SharedPreferences.getInstance();
                       await prefs.setInt('notification_hour', tempTime.hour);
                       await prefs.setInt('notification_minute', tempTime.minute);
-
                       if (_notificationsEnabled) {
                         await NotificationService().scheduleDailyNotification(tempTime.hour, tempTime.minute);
                       }
@@ -122,19 +102,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
               const SizedBox(height: 20),
-              
-              // Сам барабан
               Expanded(
                 child: CupertinoTheme(
-                  data: const CupertinoThemeData(
-                    textTheme: CupertinoTextThemeData(
-                      dateTimePickerTextStyle: TextStyle(color: AppColors.textDark, fontSize: 22),
-                    ),
-                  ),
+                  data: const CupertinoThemeData(textTheme: CupertinoTextThemeData(dateTimePickerTextStyle: TextStyle(color: AppColors.textDark, fontSize: 22))),
                   child: CupertinoDatePicker(
                     mode: CupertinoDatePickerMode.time,
-                    use24hFormat: true, // 24-часовой формат
-                    // Конвертируем TimeOfDay в DateTime для пикера (берем сегодняшнюю дату)
+                    use24hFormat: true,
                     initialDateTime: DateTime(2023, 1, 1, _notificationTime.hour, _notificationTime.minute),
                     onDateTimeChanged: (DateTime newDateTime) {
                       tempTime = TimeOfDay(hour: newDateTime.hour, minute: newDateTime.minute);
@@ -148,7 +121,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       },
     );
   }
-  
+
   String _formatTime(TimeOfDay time) {
     final hour = time.hour.toString().padLeft(2, '0');
     final minute = time.minute.toString().padLeft(2, '0');
@@ -159,14 +132,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('user_pin');
     if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const PinScreen()),
-      (route) => false,
-    );
+    Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (context) => const PinScreen()), (route) => false);
   }
-  
+
   void _showResetDialog(BuildContext context) {
-     showDialog(
+    showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.background,
@@ -178,7 +148,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: () {
               Navigator.pop(context);
               _resetPin(context);
-            }, 
+            },
             child: const Text("Сбросить", style: TextStyle(color: AppColors.secondarySalmon))
           ),
         ],
@@ -186,8 +156,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // 👇 НОВЫЙ ДИАЛОГ ВЫБОРА ВАЛЮТЫ
+  void _showCurrencyDialog(BuildContext context, TransactionProvider provider) {
+    final currencies = ['BYN', 'USD', 'EUR', 'RUB', 'KZT']; // Можешь добавить нужные
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.background,
+        title: const Text("Выберите валюту", style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textDark)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: currencies.map((c) => ListTile(
+            title: Text(c, style: const TextStyle(color: AppColors.textDark, fontWeight: FontWeight.bold)),
+            trailing: provider.currency == c 
+                ? const Icon(Icons.check_circle_rounded, color: AppColors.primaryMint) 
+                : null,
+            onTap: () {
+              provider.updateCurrency(c);
+              Navigator.pop(ctx);
+            },
+          )).toList(),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // 👇 СЛУШАЕМ ПРОВАЙДЕР
+    final provider = Provider.of<TransactionProvider>(context);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -198,6 +197,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               const Text("Настройки", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textDark)),
               const SizedBox(height: 30),
+              
+              _buildSectionTitle("Отображение"),
+              _buildSettingsTile(
+                icon: Icons.payments_rounded,
+                title: "Основная валюта",
+                subtitle: provider.currency, // Показываем текущую валюту
+                onTap: () => _showCurrencyDialog(context, provider),
+              ),
+              const SizedBox(height: 15),
 
               _buildSectionTitle("Управление"),
               _buildSettingsTile(
@@ -231,7 +239,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     if (_notificationsEnabled) ...[
                       const Divider(height: 20),
                       GestureDetector(
-                        onTap: _pickTime, // Клик открывает НОВЫЙ барабан
+                        onTap: _pickTime,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -291,7 +299,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 15),
               ],
-              
               _buildSettingsTile(
                 icon: Icons.lock_reset_rounded,
                 title: "Сбросить PIN-код",
@@ -299,8 +306,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 isDestructive: true,
                 onTap: () => _showResetDialog(context),
               ),
-
               const SizedBox(height: 15),
+
               _buildSectionTitle("О приложении"),
               _buildSettingsTile(
                 icon: Icons.info_outline_rounded,
@@ -323,9 +330,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildSettingsTile({
-    required IconData icon, 
-    required String title, 
-    required String subtitle, 
+    required IconData icon,
+    required String title,
+    required String subtitle,
     required VoidCallback onTap,
     bool isDestructive = false,
   }) {

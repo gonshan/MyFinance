@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart'; // Нужен для Icons
+import 'package:flutter/material.dart'; 
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/transaction_model.dart';
@@ -22,14 +22,13 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 2, // <--- УВЕЛИЧИЛИ ВЕРСИЮ! БЫЛО 1
+      version: 2, 
       onCreate: _createDB,
-      onUpgrade: _onUpgrade, // <--- ДОБАВИЛИ ОБРАБОТЧИК ОБНОВЛЕНИЯ
+      onUpgrade: _onUpgrade, 
     );
   }
 
-  // Срабатывает, если базы нет вообще (новая установка)
-  Future _createDB(Database db, int version) async {
+  Future<void> _createDB(Database db, int version) async {
     const idType = 'INTEGER PRIMARY KEY AUTOINCREMENT';
     const textType = 'TEXT NOT NULL';
     const realType = 'REAL NOT NULL';
@@ -37,37 +36,34 @@ class DatabaseService {
 
     // 1. Таблица транзакций
     await db.execute('''
-      CREATE TABLE transactions (
-        id $idType,
-        amount $realType,
-        category $textType,
-        date $textType,
-        isIncome $intType,
-        comment $textType
+      CREATE TABLE ${TransactionFields.table} (
+        ${TransactionFields.id} $idType,
+        ${TransactionFields.amount} $realType,
+        ${TransactionFields.category} $textType,
+        ${TransactionFields.date} $textType,
+        ${TransactionFields.isIncome} $intType,
+        ${TransactionFields.comment} $textType
       )
     ''');
 
-    // 2. Таблица категорий (СРАЗУ С budgetLimit)
+    // 2. Таблица категорий
     await db.execute('''
-      CREATE TABLE categories (
-        id $idType,
-        name $textType,
-        iconCode $intType,
-        isDefault $intType,
-        budgetLimit $realType DEFAULT 0.0
+      CREATE TABLE ${CategoryFields.table} (
+        ${CategoryFields.id} $idType,
+        ${CategoryFields.name} $textType,
+        ${CategoryFields.iconCode} $intType,
+        ${CategoryFields.isDefault} $intType,
+        ${CategoryFields.budgetLimit} $realType DEFAULT 0.0
       )
     ''');
 
-    // 3. Заполняем категории по умолчанию
     await _seedCategories(db);
   }
 
-  // Срабатывает, если у юзера версия 1, а мы выкатили версию 2
-  Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
-      // Добавляем колонку budgetLimit в существующую таблицу
-      await db.execute('ALTER TABLE categories ADD COLUMN budgetLimit REAL DEFAULT 0.0');
-      print("Миграция БД: добавлено поле budgetLimit");
+      await db.execute('ALTER TABLE ${CategoryFields.table} ADD COLUMN ${CategoryFields.budgetLimit} REAL DEFAULT 0.0');
+      debugPrint("Миграция БД: добавлено поле budgetLimit");
     }
   }
 
@@ -83,61 +79,62 @@ class DatabaseService {
     ];
 
     for (var cat in defaults) {
-      await db.insert('categories', cat.toMap());
+      await db.insert(CategoryFields.table, cat.toMap());
     }
   }
 
   // --- Transactions CRUD ---
   Future<int> createTransaction(TransactionModel transaction) async {
     final db = await instance.database;
-    return await db.insert('transactions', transaction.toMap());
+    return await db.insert(TransactionFields.table, transaction.toMap());
   }
 
   Future<List<TransactionModel>> getAllTransactions() async {
     final db = await instance.database;
-    final result = await db.query('transactions', orderBy: 'date DESC');
+    final result = await db.query(TransactionFields.table, orderBy: '${TransactionFields.date} DESC');
     return result.map((json) => TransactionModel.fromMap(json)).toList();
   }
 
   Future<int> deleteTransaction(int id) async {
     final db = await instance.database;
-    return await db.delete('transactions', where: 'id = ?', whereArgs: [id]);
+    return await db.delete(TransactionFields.table, where: '${TransactionFields.id} = ?', whereArgs: [id]);
   }
-  
+
   Future<int> updateTransaction(TransactionModel transaction) async {
     final db = await instance.database;
-    return await db.update('transactions', transaction.toMap(), where: 'id = ?', whereArgs: [transaction.id]);
+    return await db.update(TransactionFields.table, transaction.toMap(), where: '${TransactionFields.id} = ?', whereArgs: [transaction.id]);
   }
 
   Future<double> getBalance() async {
     final db = await instance.database;
-    final incomeResult = await db.rawQuery('SELECT SUM(amount) as total FROM transactions WHERE isIncome = 1');
+    final incomeResult = await db.rawQuery('SELECT SUM(${TransactionFields.amount}) as total FROM ${TransactionFields.table} WHERE ${TransactionFields.isIncome} = 1');
     double income = (incomeResult.first['total'] as num?)?.toDouble() ?? 0.0;
-    final expenseResult = await db.rawQuery('SELECT SUM(amount) as total FROM transactions WHERE isIncome = 0');
+
+    final expenseResult = await db.rawQuery('SELECT SUM(${TransactionFields.amount}) as total FROM ${TransactionFields.table} WHERE ${TransactionFields.isIncome} = 0');
     double expense = (expenseResult.first['total'] as num?)?.toDouble() ?? 0.0;
+
     return income - expense;
   }
 
   // --- Categories CRUD ---
   Future<int> createCategory(CategoryModel category) async {
     final db = await instance.database;
-    return await db.insert('categories', category.toMap());
+    return await db.insert(CategoryFields.table, category.toMap());
   }
 
   Future<List<CategoryModel>> getAllCategories() async {
     final db = await instance.database;
-    final result = await db.query('categories');
+    final result = await db.query(CategoryFields.table);
     return result.map((json) => CategoryModel.fromMap(json)).toList();
   }
 
   Future<int> deleteCategory(int id) async {
     final db = await instance.database;
-    return await db.delete('categories', where: 'id = ?', whereArgs: [id]);
+    return await db.delete(CategoryFields.table, where: '${CategoryFields.id} = ?', whereArgs: [id]);
   }
 
-  // НОВЫЙ МЕТОД: Обновление категории (для лимитов)
   Future<int> updateCategory(CategoryModel category) async {
     final db = await instance.database;
-    return await db.update('categories', category.toMap(), where: 'id = ?', whereArgs: [category.id]);
+    return await db.update(CategoryFields.table, category.toMap(), where: '${CategoryFields.id} = ?', whereArgs: [category.id]);
   }
 }

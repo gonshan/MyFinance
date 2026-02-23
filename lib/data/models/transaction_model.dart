@@ -1,10 +1,20 @@
+class TransactionFields {
+  static const String table = 'transactions';
+  static const String id = 'id';
+  static const String amount = 'amount';
+  static const String category = 'category';
+  static const String date = 'date';
+  static const String isIncome = 'isIncome';
+  static const String comment = 'comment';
+}
+
 class TransactionModel {
-  final int? id;           // Уникальный номер (нужен базе)
-  final double amount;     // Сумма [cite: 33]
-  final String category;   // Категория (пока строкой) [cite: 34]
-  final DateTime date;     // Дата [cite: 35]
-  final bool isIncome;     // Тип: true = Доход, false = Расход [cite: 37]
-  final String comment;    // Дополнительно: комментарий
+  final int? id;
+  final double amount;
+  final String category;
+  final DateTime date;
+  final bool isIncome;
+  final String comment;
 
   TransactionModel({
     this.id,
@@ -15,27 +25,25 @@ class TransactionModel {
     this.comment = '',
   });
 
-  // Превращаем наш класс в "Карту" (Map), чтобы SQLite понял (упаковка)
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
-      'amount': amount,
-      'category': category,
-      'date': date.toIso8601String(), // SQLite не понимает даты, храним как текст
-      'isIncome': isIncome ? 1 : 0,   // SQLite не понимает bool, храним как 1 или 0
-      'comment': comment,
+      TransactionFields.id: id,
+      TransactionFields.amount: amount,
+      TransactionFields.category: category,
+      TransactionFields.date: date.toIso8601String(),
+      TransactionFields.isIncome: isIncome ? 1 : 0,
+      TransactionFields.comment: comment,
     };
   }
 
-  // Превращаем данные из базы обратно в наш класс (распаковка)
   factory TransactionModel.fromMap(Map<String, dynamic> map) {
     return TransactionModel(
-      id: map['id'],
-      amount: map['amount'],
-      category: map['category'],
-      date: DateTime.parse(map['date']),
-      isIncome: map['isIncome'] == 1,
-      comment: map['comment'],
+      id: map[TransactionFields.id],
+      amount: map[TransactionFields.amount],
+      category: map[TransactionFields.category],
+      date: DateTime.parse(map[TransactionFields.date]),
+      isIncome: map[TransactionFields.isIncome] == 1,
+      comment: map[TransactionFields.comment],
     );
   }
 }

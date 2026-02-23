@@ -4,25 +4,22 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // <--- ДОБАВИЛИ ИМПОРТ
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/theme.dart';
 import 'core/providers/transaction_provider.dart';
 import 'core/services/notification_service.dart';
 import 'presentation/screens/pin_screen.dart';
-import 'presentation/screens/onboarding_screen.dart'; // <--- ДОБАВИЛИ ИМПОРТ
+import 'presentation/screens/onboarding_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await initializeDateFormatting('ru', null);
   await NotificationService().init();
 
   // Проверяем, первый ли это запуск
   final prefs = await SharedPreferences.getInstance();
-  final bool isFirstRun =
-      prefs.getBool('is_first_run') ??
-      true; // По умолчанию true (первый запуск)
+  final bool isFirstRun = prefs.getBool('is_first_run') ?? true;
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -31,22 +28,26 @@ Future<void> main() async {
     ),
   );
 
-  runApp(MyApp(isFirstRun: isFirstRun)); // Передаем результат в MyApp
+  runApp(MyApp(isFirstRun: isFirstRun));
 }
 
 class MyApp extends StatelessWidget {
-  final bool isFirstRun; // <--- ПРИНИМАЕМ ПЕРЕМЕННУЮ
+  final bool isFirstRun;
 
   const MyApp({super.key, required this.isFirstRun});
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => TransactionProvider())],
+      // 👇 ИСПРАВЛЕНИЕ: Вызываем loadData() сразу при создании провайдера
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => TransactionProvider()..loadData(),
+        ),
+      ],
       child: MaterialApp(
         title: 'MyFinance',
         debugShowCheckedModeBanner: false,
-
         localizationsDelegates: const [
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,
@@ -54,15 +55,12 @@ class MyApp extends StatelessWidget {
         ],
         supportedLocales: const [Locale('ru', 'RU')],
         locale: const Locale('ru', 'RU'),
-
         theme: ThemeData(
           scaffoldBackgroundColor: AppColors.background,
           primaryColor: AppColors.primaryMint,
           textTheme: GoogleFonts.nunitoTextTheme(Theme.of(context).textTheme),
           useMaterial3: true,
         ),
-
-        // 👇 ВЫБИРАЕМ СТАРТОВЫЙ ЭКРАН 👇
         home: isFirstRun ? const OnboardingScreen() : const PinScreen(),
       ),
     );

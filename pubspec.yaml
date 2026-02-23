@@ -33,10 +33,7 @@ dependencies:
   sqflite: ^2.3.0  # Сама база данных
   path: ^1.8.3     # Помощник для поиска путей к файлам на Android/iOS
   google_fonts: ^6.1.0
-  
-  # 👇 ВОТ ЗДЕСЬ МЕНЯЕМ ВЕРСИЮ 👇
   intl: ^0.20.2  
-  
   provider: ^6.1.1
   fl_chart: ^0.66.0
   shared_preferences: ^2.2.2
@@ -49,6 +46,9 @@ dependencies:
   flutter_timezone: ^3.0.1
   flutter_localizations:
     sdk: flutter
+  shimmer: ^3.0.0
+  confetti: ^0.8.0
+  http: ^1.2.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

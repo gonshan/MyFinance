@@ -1,27 +1,24 @@
-import 'dart:typed_data';
-import 'package:flutter/services.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
+
 import '../../data/models/transaction_model.dart';
 
 class PdfService {
-  /// Главный метод: создает PDF и открывает меню "Поделиться/Печать"
   Future<void> generateAndPrintPdf({
     required List<TransactionModel> transactions,
     required DateTime date,
   }) async {
     final doc = pw.Document();
 
-    // 1. Загружаем шрифт с поддержкой кириллицы (Roboto или Nunito)
-    // PdfGoogleFonts автоматически скачает его при первом запуске
-    final font = await PdfGoogleFonts.robotoRegular();
-    final fontBold = await PdfGoogleFonts.robotoBold();
+    final fontData = await rootBundle.load('assets/fonts/Roboto-Regular.ttf');
+    final ttf = pw.Font.ttf(fontData);
 
-    // 2. Считаем итоги
     double totalIncome = 0;
     double totalExpense = 0;
+
     for (var t in transactions) {
       if (t.isIncome) {
         totalIncome += t.amount;
@@ -29,21 +26,21 @@ class PdfService {
         totalExpense += t.amount;
       }
     }
-    final totalBalance = totalIncome - totalExpense;
 
-    // 3. Форматируем дату для заголовка
+    final totalBalance = totalIncome - totalExpense;
     final monthName = DateFormat('LLLL yyyy', 'ru').format(date).toUpperCase();
 
-    // 4. Рисуем страницу
     doc.addPage(
       pw.MultiPage(
         pageTheme: pw.PageTheme(
-          theme: pw.ThemeData.withFont(base: font, bold: fontBold),
+          theme: pw.ThemeData.withFont(
+            base: ttf,
+            bold: ttf,
+          ),
           margin: const pw.EdgeInsets.all(40),
         ),
         build: (pw.Context context) {
           return [
-            // ЗАГОЛОВОК
             pw.Header(
               level: 0,
               child: pw.Row(
@@ -56,7 +53,6 @@ class PdfService {
             ),
             pw.SizedBox(height: 20),
 
-            // БЛОК С ИТОГАМИ
             pw.Container(
               padding: const pw.EdgeInsets.all(10),
               decoration: pw.BoxDecoration(
@@ -74,13 +70,12 @@ class PdfService {
             ),
             pw.SizedBox(height: 30),
 
-            // ТАБЛИЦА ТРАНЗАКЦИЙ
             pw.Text("Детализация операций", style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 10),
             
-            pw.Table.fromTextArray(
+            pw.TableHelper.fromTextArray(
               context: context,
-              border: null, // Убираем сетку, делаем стильно
+              border: null, 
               headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
               headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey800),
               cellHeight: 30,
@@ -97,17 +92,18 @@ class PdfService {
                 return [dateStr, t.category, amountStr];
               }).toList(),
             ),
-            
-            pw.Padding(padding: const pw.EdgeInsets.only(top: 20), child: pw.Text("Сгенерировано приложением MyFinance", style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey500))),
+            pw.Padding(
+              padding: const pw.EdgeInsets.only(top: 20), 
+              child: pw.Text("Сгенерировано приложением MyFinance", style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey500))
+            ),
           ];
         },
       ),
     );
 
-    // 5. Открываем меню предварительного просмотра и печати
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => doc.save(),
-      name: 'Report_$monthName', // Имя файла при сохранении
+      name: 'Report_$monthName', 
     );
   }
 

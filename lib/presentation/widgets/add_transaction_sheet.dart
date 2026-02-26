@@ -35,12 +35,10 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
     super.initState();
     final provider = Provider.of<TransactionProvider>(context, listen: false);
 
-    // 1. Категория по умолчанию
     if (provider.categories.isNotEmpty) {
       _selectedCategory = provider.categories.first.name;
     }
 
-    // 2. Заполнение данными
     if (widget.transaction != null) {
       _isIncome = widget.transaction!.isIncome;
       _selectedCategory = widget.transaction!.category;
@@ -99,7 +97,6 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
       },
     );
     
-    // ПРОВЕРКА НА MOUNTED, чтобы избежать утечек и ошибок контекста после await
     if (!mounted) return;
 
     if (picked != null && picked != _selectedDate) {
@@ -120,7 +117,6 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
         available += widget.transaction!.amount;
       }
       if (available < value) {
-        // Захватываем ScaffoldMessenger ДО того, как закрыть контекст
         final messenger = ScaffoldMessenger.of(context);
         Navigator.pop(context);
         
@@ -154,7 +150,6 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
       provider.editTransaction(transaction);
     }
 
-    // 👇 ВОЗВРАЩАЕМ ФЛАГ: Праздновать ли? (если это доход)
     bool shouldCelebrate = _isIncome;
     Navigator.pop(context, shouldCelebrate);
   }
@@ -192,7 +187,6 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
                     style: const TextStyle(fontSize: 16, color: AppColors.textGrey, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 15),
-                  // Переключатель
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -202,7 +196,6 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  // СУММА
                   Text(
                     "$_amount BYN",
                     style: TextStyle(
@@ -211,7 +204,6 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
                       color: _isIncome ? AppColors.primaryMint : AppColors.secondarySalmon
                     ),
                   ),
-                  // ДАТА
                   GestureDetector(
                     onTap: _pickDate,
                     child: Container(
@@ -236,7 +228,6 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  // СКРОЛЛ КАТЕГОРИЙ
                   SizedBox(
                     height: 90,
                     child: ListView.separated(
@@ -309,7 +300,6 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  // КЛАВИАТУРА
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: const BoxDecoration(

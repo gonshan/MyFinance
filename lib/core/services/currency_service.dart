@@ -10,7 +10,6 @@ class CurrencyRate {
 }
 
 class CurrencyService {
-  // Официальный бесплатный API Нацбанка РБ
   static const String _url = 'https://api.nbrb.by/exrates/rates?periodicity=0';
 
   static Future<List<CurrencyRate>> fetchRates() async {
@@ -20,7 +19,6 @@ class CurrencyService {
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         
-        // Ищем Доллар (USD) и Евро (EUR)
         final usdData = data.firstWhere((el) => el['Cur_Abbreviation'] == 'USD', orElse: () => null);
         final eurData = data.firstWhere((el) => el['Cur_Abbreviation'] == 'EUR', orElse: () => null);
 
@@ -39,6 +37,6 @@ class CurrencyService {
       debugPrint("Ошибка загрузки курсов валют: $e");
     }
     
-    return []; // Если нет интернета - просто вернем пустой список, чтобы не крашнуть приложение
+    return [];
   }
 }

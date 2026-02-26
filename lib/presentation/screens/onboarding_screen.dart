@@ -15,7 +15,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  // Данные для слайдов
   final List<Map<String, dynamic>> _pages = [
     {
       "title": "Умный учет",
@@ -27,7 +26,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       "title": "Сканер чеков",
       "desc": "Сканируйте QR-коды для мгновенного добавления покупок.",
       "icon": Icons.qr_code_scanner_rounded,
-      "color": const Color(0xFF5E63B6), // Красивый фиолетовый
+      "color": const Color(0xFF5E63B6),
     },
     {
       "title": "Бюджетирование",
@@ -39,14 +38,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       "title": "Безопасность",
       "desc": "Ваши финансы под надежной защитой ПИН-кода и биометрии.",
       "icon": Icons.security_rounded,
-      "color": const Color(0xFFFACD60), // Теплый желтый
+      "color": const Color(0xFFFACD60),
     },
   ];
 
-  // Метод завершения онбординга
   Future<void> _finishOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('is_first_run', false); // Запоминаем, что уже показывали
+    await prefs.setBool('is_first_run', false);
 
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
@@ -61,7 +59,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Кнопка "Пропустить" в правом верхнем углу
             Align(
               alignment: Alignment.topRight,
               child: TextButton(
@@ -70,7 +67,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             ),
             
-            // Слайдер
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
@@ -83,10 +79,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Круглая неоморфная карточка с иконкой
                         NeumorphicCard(
                           padding: const EdgeInsets.all(40),
-                          borderRadius: 100, // Делаем идеальный круг
+                          borderRadius: 100,
                           child: Icon(item['icon'], size: 80, color: item['color']),
                         ),
                         const SizedBox(height: 50),
@@ -108,13 +103,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             ),
 
-            // Нижняя панель: Индикаторы и Кнопка
             Padding(
               padding: const EdgeInsets.all(30),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Точки (индикаторы страниц)
                   Row(
                     children: List.generate(_pages.length, (index) {
                       return AnimatedContainer(
@@ -130,11 +123,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     }),
                   ),
 
-                  // Кнопка "Далее" / "Начать"
                   ElevatedButton(
                     onPressed: () {
                       if (_currentPage == _pages.length - 1) {
-                        _finishOnboarding(); // Если последний слайд - идем дальше
+                        _finishOnboarding();
                       } else {
                         _pageController.nextPage(
                           duration: const Duration(milliseconds: 300), 

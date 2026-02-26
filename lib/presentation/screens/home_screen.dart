@@ -6,6 +6,7 @@ import 'package:shimmer/shimmer.dart';
 import '../../core/theme.dart';
 import '../../core/providers/transaction_provider.dart';
 import '../../core/services/currency_service.dart';
+import '../../core/services/notification_service.dart';
 import '../../data/models/transaction_model.dart';
 import '../../data/models/category_model.dart';
 
@@ -23,6 +24,17 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   DateTime _selectedDate = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final hasPermission = await NotificationService().requestPermissions();
+      if (hasPermission) {
+        await NotificationService().scheduleDailyNotification(20, 0);
+      }
+    });
+  }
 
   void _changeMonth(int monthsToAdd) {
     setState(() {
@@ -104,19 +116,17 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<TransactionProvider>(context);
-    
+
     if (provider.isLoading) {
       return Scaffold(
         backgroundColor: AppColors.background,
-        body: SafeArea(
-          child: _buildShimmerLoading(),
-        ),
+        body: SafeArea(child: _buildShimmerLoading()),
       );
     }
 
     final currencyFormat = NumberFormat.currency(
       locale: "ru_RU",
-      symbol: provider.currency, 
+      symbol: provider.currency,
       decimalDigits: 2,
     );
 
@@ -162,10 +172,10 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 30),
               _buildBalanceCard(provider.balance, currencyFormat),
               const SizedBox(height: 20),
-              
+
               if (provider.exchangeRates.isNotEmpty)
                 _buildExchangeRates(provider.exchangeRates),
-              
+
               const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -254,7 +264,7 @@ class _HomeScreenState extends State<HomeScreen> {
               SpendingChart(
                 weeklyIncome: weeklyIncome,
                 weeklyExpense: weeklyExpense,
-                currency: provider.currency, 
+                currency: provider.currency,
               ),
               const SizedBox(height: 30),
               monthlyTransactions.isEmpty
@@ -268,7 +278,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- МЕТОДЫ ---
   String _getStatusMessage(double balance) {
     if (balance >= 1000) return "Финансовая подушка в безопасности! 🦁";
     if (balance > 0) return "Всё под контролем 👌";
@@ -280,19 +289,28 @@ class _HomeScreenState extends State<HomeScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        Row(
           children: [
-            Text(
-              "Добрый вечер,",
-              style: TextStyle(fontSize: 14, color: AppColors.textGrey),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.primaryMint.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.account_balance_wallet_rounded,
+                color: AppColors.primaryMint,
+                size: 20,
+              ),
             ),
-            Text(
-              "Владелец",
+            const SizedBox(width: 10),
+            const Text(
+              "MyFinance",
               style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
                 color: AppColors.textDark,
+                letterSpacing: 0.5,
               ),
             ),
           ],
@@ -363,13 +381,17 @@ class _HomeScreenState extends State<HomeScreen> {
     Map<String, List<TransactionModel>> grouped = {};
     Map<String, double> categorySpent = {};
 
+    final dateFormatter = DateFormat('yyyy-MM-dd');
+
     for (var t in transactions) {
-      String dateKey = DateFormat('yyyy-MM-dd').format(t.date);
+      String dateKey = dateFormatter.format(t.date);
+
       if (grouped[dateKey] == null) grouped[dateKey] = [];
       grouped[dateKey]!.add(t);
 
       if (!t.isIncome) {
-        categorySpent[t.category] = (categorySpent[t.category] ?? 0.0) + t.amount;
+        categorySpent[t.category] =
+            (categorySpent[t.category] ?? 0.0) + t.amount;
       }
     }
 
@@ -395,7 +417,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-            ...(grouped[dateKey] ?? []).map((t) { // 👇 ИСПРАВЛЕНА ОШИБКА С !
+            ...(grouped[dateKey] ?? []).map((t) {
               CategoryModel? catModel;
               try {
                 catModel = provider.categories.firstWhere(
@@ -425,11 +447,13 @@ class _HomeScreenState extends State<HomeScreen> {
   String _getDateTitle(String dateKey) {
     final now = DateTime.now();
     final today = DateFormat('yyyy-MM-dd').format(now);
-    final yesterday = DateFormat('yyyy-MM-dd').format(now.subtract(const Duration(days: 1)));
-    
+    final yesterday = DateFormat(
+      'yyyy-MM-dd',
+    ).format(now.subtract(const Duration(days: 1)));
+
     if (dateKey == today) return "Сегодня";
     if (dateKey == yesterday) return "Вчера";
-    
+
     DateTime date = DateTime.parse(dateKey);
     return DateFormat('d MMMM', 'ru').format(date);
   }
@@ -467,7 +491,12 @@ class _HomeScreenState extends State<HomeScreen> {
               builder: (context) => AddTransactionSheet(transaction: t),
             );
           },
-          child: _buildTransactionItem(t, categoryModel, spentInMonth, provider.currency),
+          child: _buildTransactionItem(
+            t,
+            categoryModel,
+            spentInMonth,
+            provider.currency,
+          ),
         ),
       ),
     );
@@ -477,7 +506,7 @@ class _HomeScreenState extends State<HomeScreen> {
     TransactionModel t,
     CategoryModel? cat,
     double spent,
-    String currency
+    String currency,
   ) {
     IconData icon = Icons.shopping_bag_outlined;
     if (cat != null) icon = IconData(cat.iconCode, fontFamily: 'MaterialIcons');
@@ -487,9 +516,9 @@ class _HomeScreenState extends State<HomeScreen> {
     Color progressColor = AppColors.primaryMint;
 
     if (showLimit) {
-      progress = (spent / (cat?.budgetLimit ?? 1)).clamp(0.0, 1.0); // 👇 ИСПРАВЛЕНА ОШИБКА С !
+      progress = (spent / cat!.budgetLimit).clamp(0.0, 1.0);
       if (progress >= 1.0) {
-        progressColor = AppColors.secondarySalmon; 
+        progressColor = AppColors.secondarySalmon;
       } else if (progress > 0.75) {
         progressColor = Colors.orangeAccent;
       }
@@ -562,19 +591,19 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  "Лимит: ${(cat?.budgetLimit ?? 0).toStringAsFixed(0)}", // 👇 ИСПРАВЛЕНА ОШИБКА С !
+                  "Лимит: ${cat!.budgetLimit.toStringAsFixed(0)}",
                   style: const TextStyle(
                     fontSize: 10,
                     color: AppColors.textGrey,
                   ),
                 ),
                 Text(
-                  spent > (cat?.budgetLimit ?? 0)
+                  spent > cat.budgetLimit
                       ? "Превышено!"
-                      : "${((cat?.budgetLimit ?? 0) - spent).toStringAsFixed(0)} ост.",
+                      : "${(cat.budgetLimit - spent).toStringAsFixed(0)} ост.",
                   style: TextStyle(
                     fontSize: 10,
-                    color: spent > (cat?.budgetLimit ?? 0)
+                    color: spent > cat.budgetLimit
                         ? AppColors.secondarySalmon
                         : AppColors.textGrey,
                     fontWeight: FontWeight.bold,
@@ -589,23 +618,23 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildEmptyState() => Container(
-        padding: const EdgeInsets.all(30),
-        alignment: Alignment.center,
-        child: const Column(
-          children: [
-            Icon(
-              Icons.history_toggle_off_rounded,
-              size: 60,
-              color: AppColors.textGrey,
-            ),
-            SizedBox(height: 10),
-            Text(
-              "В этом месяце операций нет",
-              style: TextStyle(color: AppColors.textGrey),
-            ),
-          ],
+    padding: const EdgeInsets.all(30),
+    alignment: Alignment.center,
+    child: const Column(
+      children: [
+        Icon(
+          Icons.history_toggle_off_rounded,
+          size: 60,
+          color: AppColors.textGrey,
         ),
-      );
+        SizedBox(height: 10),
+        Text(
+          "В этом месяце операций нет",
+          style: TextStyle(color: AppColors.textGrey),
+        ),
+      ],
+    ),
+  );
 
   Widget _buildShimmerLoading() {
     return Shimmer.fromColors(
@@ -627,26 +656,64 @@ class _HomeScreenState extends State<HomeScreen> {
                     Container(width: 120, height: 24, color: Colors.white),
                   ],
                 ),
-                Container(width: 48, height: 48, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15))),
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 30),
-            Container(width: double.infinity, height: 180, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(30))),
+            Container(
+              width: double.infinity,
+              height: 180,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(30),
+              ),
+            ),
             const SizedBox(height: 30),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(width: 150, height: 20, color: Colors.white),
-                Container(width: 100, height: 40, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20))),
+                Container(
+                  width: 100,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 20),
-            Container(width: double.infinity, height: 150, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20))),
+            Container(
+              width: double.infinity,
+              height: 150,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
             const SizedBox(height: 30),
-            ...List.generate(3, (index) => Padding(
-              padding: const EdgeInsets.only(bottom: 15),
-              child: Container(width: double.infinity, height: 70, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20))),
-            )),
+            ...List.generate(
+              3,
+              (index) => Padding(
+                padding: const EdgeInsets.only(bottom: 15),
+                child: Container(
+                  width: double.infinity,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -675,11 +742,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Text(
                     "${rate.name} (НБРБ)",
-                    style: const TextStyle(fontSize: 12, color: AppColors.textGrey, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textGrey,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   Text(
                     "${rate.rate.toStringAsFixed(4)} BYN",
-                    style: const TextStyle(fontSize: 14, color: AppColors.textDark, fontWeight: FontWeight.w800),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textDark,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ],
               ),

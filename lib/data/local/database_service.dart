@@ -34,7 +34,6 @@ class DatabaseService {
     const realType = 'REAL NOT NULL';
     const intType = 'INTEGER NOT NULL';
 
-    // 1. Таблица транзакций
     await db.execute('''
       CREATE TABLE ${TransactionFields.table} (
         ${TransactionFields.id} $idType,
@@ -46,7 +45,6 @@ class DatabaseService {
       )
     ''');
 
-    // 2. Таблица категорий
     await db.execute('''
       CREATE TABLE ${CategoryFields.table} (
         ${CategoryFields.id} $idType,
@@ -63,7 +61,6 @@ class DatabaseService {
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await db.execute('ALTER TABLE ${CategoryFields.table} ADD COLUMN ${CategoryFields.budgetLimit} REAL DEFAULT 0.0');
-      debugPrint("Миграция БД: добавлено поле budgetLimit");
     }
   }
 
@@ -83,7 +80,6 @@ class DatabaseService {
     }
   }
 
-  // --- Transactions CRUD ---
   Future<int> createTransaction(TransactionModel transaction) async {
     final db = await instance.database;
     return await db.insert(TransactionFields.table, transaction.toMap());
@@ -116,7 +112,6 @@ class DatabaseService {
     return income - expense;
   }
 
-  // --- Categories CRUD ---
   Future<int> createCategory(CategoryModel category) async {
     final db = await instance.database;
     return await db.insert(CategoryFields.table, category.toMap());

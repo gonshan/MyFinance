@@ -6,16 +6,16 @@ class NeumorphicCard extends StatelessWidget {
   final double borderRadius;
   final EdgeInsetsGeometry? padding;
   final VoidCallback? onTap;
-  final bool isPressed; // Для анимации нажатия (в будущем)
+  final bool isPressed;
 
   const NeumorphicCard({
-    Key? key,
+    super.key,
     required this.child,
     this.borderRadius = 20.0,
     this.padding,
     this.onTap,
     this.isPressed = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -27,15 +27,13 @@ class NeumorphicCard extends StatelessWidget {
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(borderRadius),
           boxShadow: isPressed
-              ? [] // Если нажата — убираем тени (эффект вдавливания реализуем позже)
+              ? []
               : [
-                  // Тень справа-снизу (темная)
                   BoxShadow(
                     color: AppColors.shadowDark.withOpacity(0.7),
                     offset: const Offset(8, 8),
                     blurRadius: 16,
                   ),
-                  // Тень слева-сверху (светлая - блик)
                   BoxShadow(
                     color: AppColors.shadowLight,
                     offset: const Offset(-8, -8),
@@ -49,4 +47,3 @@ class NeumorphicCard extends StatelessWidget {
   }
 }
 
-//Один из самых важных файлов, это дизайн. Он создает Soft UI с двумя тенями

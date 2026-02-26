@@ -5,7 +5,7 @@ import '../widgets/neumorphic_card.dart';
 import 'home_screen.dart';
 
 class MainNavigation extends StatefulWidget {
-  const MainNavigation({Key? key}) : super(key: key);
+  const MainNavigation({super.key});
 
   @override
   _MainNavigationState createState() => _MainNavigationState();
@@ -16,7 +16,7 @@ class _MainNavigationState extends State<MainNavigation> {
 
   final List<Widget> _screens = [
     const HomeScreen(),
-    const Center(child: Text("Analytics")), // Заглушки
+    const Center(child: Text("Analytics")),
     const Center(child: Text("Wallet")),
     const Center(child: Text("Profile")),
   ];
@@ -24,7 +24,7 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBody: true, // Важно! Чтобы контент был ПОД прозрачной панелью
+      extendBody: true,
       body: _screens[_currentIndex],
       bottomNavigationBar: _buildFloatingNavBar(),
     );
@@ -41,8 +41,6 @@ class _MainNavigationState extends State<MainNavigation> {
           children: [
             _navItem(Icons.home_rounded, 0),
             _navItem(Icons.pie_chart_rounded, 1),
-            // Центральная кнопка добавления
-            // Центральная кнопка добавления
             GestureDetector(
               onTap: () {
                 showModalBottomSheet(
@@ -54,14 +52,13 @@ class _MainNavigationState extends State<MainNavigation> {
               },
               child: Container(
                 padding: const EdgeInsets.all(12),
-                // ВОТ ЗДЕСЬ ВАЖНО:
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [AppColors.primaryMint, AppColors.primaryMint.withOpacity(0.8)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  shape: BoxShape.circle, // <--- Эта строка делает её круглой!
+                  shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
                       color: AppColors.primaryMint.withOpacity(0.4),
@@ -99,7 +96,7 @@ class _MainNavigationState extends State<MainNavigation> {
             height: 4,
             width: isSelected ? 4 : 0,
             decoration: const BoxDecoration(
-              color: AppColors.secondarySalmon, // Акцентная точка
+              color: AppColors.secondarySalmon,
               shape: BoxShape.circle,
             ),
           ),
@@ -108,5 +105,3 @@ class _MainNavigationState extends State<MainNavigation> {
     );
   }
 }
-
-// Плавающая навигация

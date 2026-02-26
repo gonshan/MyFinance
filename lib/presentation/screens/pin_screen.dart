@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:local_auth/local_auth.dart'; // Биометрия
+import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme.dart';
 import 'main_wrapper.dart';
@@ -22,12 +22,10 @@ class _PinScreenState extends State<PinScreen>
   bool _isError = false;
   late AnimationController _shakeController;
 
-  // Биометрия
   final LocalAuthentication auth = LocalAuthentication();
-  bool _canCheckBiometrics = false; // Есть ли "железо"
-  bool _isBiometricsEnabled = false; // Включил ли юзер в настройках
+  bool _canCheckBiometrics = false;
+  bool _isBiometricsEnabled = false;
 
-  // Блокировка
   int _failedAttempts = 0;
   DateTime? _lockoutEndTime;
   Timer? _timer;
@@ -64,14 +62,11 @@ class _PinScreenState extends State<PinScreen>
     final prefs = await SharedPreferences.getInstance();
     final pin = prefs.getString('user_pin');
 
-    // Читаем настройку пользователя (по умолчанию false)
     final useBio = prefs.getBool('use_biometrics') ?? false;
 
-    // Проверка блокировки
     final lockoutMillis = prefs.getInt('lockout_end_time');
     final attempts = prefs.getInt('failed_attempts') ?? 0;
 
-    // Проверка доступности биометрии ("железо")
     bool canCheck = false;
     try {
       canCheck =
@@ -86,7 +81,7 @@ class _PinScreenState extends State<PinScreen>
       _storedPin = pin;
       _failedAttempts = attempts;
       _canCheckBiometrics = canCheck;
-      _isBiometricsEnabled = useBio; // Сохраняем настройку в состояние
+      _isBiometricsEnabled = useBio;
       _isLoading = false;
     });
 
@@ -99,14 +94,12 @@ class _PinScreenState extends State<PinScreen>
         _resetLockout(prefs);
       }
     } else {
-      // АВТОЗАПУСК: Если есть пин, железо позволяет И юзер включил настройку
       if (_storedPin != null && _canCheckBiometrics && _isBiometricsEnabled) {
         _authenticate();
       }
     }
   }
 
-  // Метод вызова биометрии
   Future<void> _authenticate() async {
     try {
       final bool didAuthenticate = await auth.authenticate(
@@ -184,12 +177,10 @@ class _PinScreenState extends State<PinScreen>
     await Future.delayed(const Duration(milliseconds: 150));
 
     if (_storedPin == null) {
-      // Создание нового пина
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_pin', _enteredPin);
       _navigateToHome();
     } else {
-      // Проверка существующего
       if (_enteredPin == _storedPin) {
         final prefs = await SharedPreferences.getInstance();
         await _resetLockout(prefs);
@@ -237,8 +228,9 @@ class _PinScreenState extends State<PinScreen>
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading)
+    if (_isLoading) {
       return const Scaffold(backgroundColor: AppColors.background);
+    }
 
     final isCreating = _storedPin == null;
     final isLocked = _lockoutEndTime != null;
@@ -362,8 +354,6 @@ class _PinScreenState extends State<PinScreen>
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // Кнопка биометрии (слева от 0)
-                          // Показываем только если ПИН создан, железо есть И ВКЛЮЧЕНО В НАСТРОЙКАХ
                           SizedBox(
                             width: 65,
                             height: 65,
@@ -380,7 +370,7 @@ class _PinScreenState extends State<PinScreen>
                                       color: AppColors.primaryMint,
                                     ),
                                   )
-                                : null, // Иначе пустое место
+                                : null,
                           ),
 
                           _buildKey('0'),

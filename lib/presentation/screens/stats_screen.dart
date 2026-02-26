@@ -8,7 +8,7 @@ import '../widgets/neumorphic_card.dart';
 import '../../core/services/pdf_service.dart';
 
 class StatsScreen extends StatefulWidget {
-  const StatsScreen({Key? key}) : super(key: key);
+  const StatsScreen({super.key});
 
   @override
   State<StatsScreen> createState() => _StatsScreenState();
@@ -16,17 +16,14 @@ class StatsScreen extends StatefulWidget {
 
 class _StatsScreenState extends State<StatsScreen> {
   int touchedIndex = -1; 
-  DateTime _selectedDate = DateTime.now(); // Текущая выбранная дата
-  bool _isDailyMode = false; // Режим: false = Месяц, true = День
+  DateTime _selectedDate = DateTime.now();
+  bool _isDailyMode = false;
 
-  // Переключение периода (месяц или день)
   void _changePeriod(int step) {
     setState(() {
       if (_isDailyMode) {
-        // Листаем по дням
         _selectedDate = _selectedDate.add(Duration(days: step));
       } else {
-        // Листаем по месяцам
         _selectedDate = DateTime(
           _selectedDate.year,
           _selectedDate.month + step,
@@ -36,11 +33,9 @@ class _StatsScreenState extends State<StatsScreen> {
     });
   }
 
-  // Метод экспорта в PDF
   Future<void> _exportToPdf() async {
     final provider = Provider.of<TransactionProvider>(context, listen: false);
     
-    // Берем транзакции за выбранный период (месяц или день)
     final filteredTransactions = provider.transactions.where((t) {
       if (_isDailyMode) {
         return t.date.year == _selectedDate.year && 
@@ -76,7 +71,6 @@ class _StatsScreenState extends State<StatsScreen> {
   Widget build(BuildContext context) {
     final provider = Provider.of<TransactionProvider>(context);
     
-    // 1. Фильтруем расходы для ГРАФИКА
     final expenses = provider.transactions.where((t) {
       if (t.isIncome) return false;
       
@@ -90,7 +84,6 @@ class _StatsScreenState extends State<StatsScreen> {
       }
     }).toList();
     
-    // 2. Группируем для PieChart
     Map<String, double> categoryTotals = {};
     double totalExpense = 0;
 
@@ -106,7 +99,6 @@ class _StatsScreenState extends State<StatsScreen> {
     var sortedEntries = categoryTotals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    // Форматируем текст даты
     String dateText = _isDailyMode
         ? DateFormat('d MMMM yyyy', 'ru').format(_selectedDate)
         : DateFormat('LLLL yyyy', 'ru').format(_selectedDate);
@@ -119,7 +111,6 @@ class _StatsScreenState extends State<StatsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // --- ЗАГОЛОВОК + КНОПКА PDF ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -139,7 +130,6 @@ class _StatsScreenState extends State<StatsScreen> {
               ),
               const SizedBox(height: 20),
 
-              // --- ПЕРЕКЛЮЧАТЕЛЬ МЕСЯЦ / ДЕНЬ ---
               NeumorphicCard(
                 padding: const EdgeInsets.all(5),
                 borderRadius: 15,
@@ -190,7 +180,6 @@ class _StatsScreenState extends State<StatsScreen> {
               ),
               const SizedBox(height: 20),
 
-              // --- ВЫБОР ДАТЫ / МЕСЯЦА ---
               NeumorphicCard(
                 padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
                 borderRadius: 15,
@@ -217,7 +206,6 @@ class _StatsScreenState extends State<StatsScreen> {
               if (totalExpense == 0)
                 _buildEmptyState()
               else ...[
-                // --- ДИАГРАММА ---
                 SizedBox(
                   height: 250,
                   child: Stack(
@@ -260,7 +248,6 @@ class _StatsScreenState extends State<StatsScreen> {
                 ),
                 const SizedBox(height: 40),
 
-                // --- ЛЕГЕНДА ---
                 ...List.generate(sortedEntries.length, (index) {
                   final entry = sortedEntries[index];
                   final percent = (entry.value / totalExpense * 100).toStringAsFixed(1);

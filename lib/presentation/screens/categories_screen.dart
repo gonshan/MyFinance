@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme.dart';
-import '../../core/constants.dart'; // <--- НОВЫЙ ИМПОРТ КОНСТАНТ
+import '../../core/constants.dart';
 import '../../core/providers/transaction_provider.dart';
 import '../../data/models/category_model.dart';
 import '../widgets/neumorphic_card.dart';
@@ -20,7 +20,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       context: context,
       builder: (ctx) => _CategoryDialog(
         category: category,
-        // ИСПОЛЬЗУЕМ КОНСТАНТУ ИЗ constants.dart
         availableIcons: AppConstants.availableCategoryIcons, 
       ),
     );
@@ -46,7 +45,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.primaryMint,
-        onPressed: () => _showCategoryDialog(), // Вызов диалога для создания
+        onPressed: () => _showCategoryDialog(),
         child: const Icon(Icons.add, color: Colors.white),
       ),
       body: ListView.builder(
@@ -87,7 +86,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                   vertical: 15,
                 ),
                 borderRadius: 15,
-                onTap: () => _showCategoryDialog(category: cat), // ТАП ДЛЯ РЕДАКТИРОВАНИЯ
+                onTap: () => _showCategoryDialog(category: cat),
                 child: Row(
                   children: [
                     Container(
@@ -114,7 +113,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                               color: AppColors.textDark,
                             ),
                           ),
-                          // Показываем лимит, если он задан
                           if (cat.budgetLimit > 0)
                             Text(
                               "Лимит: ${cat.budgetLimit.toStringAsFixed(0)} BYN",
@@ -243,7 +241,6 @@ class _CategoryDialogState extends State<_CategoryDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Имя
             const Text(
               "Название",
               style: TextStyle(
@@ -274,7 +271,6 @@ class _CategoryDialogState extends State<_CategoryDialog> {
             ),
             const SizedBox(height: 20),
 
-            // 2. Лимит бюджета
             const Text(
               "Месячный бюджет (BYN)",
               style: TextStyle(
@@ -310,7 +306,6 @@ class _CategoryDialogState extends State<_CategoryDialog> {
             ),
             const SizedBox(height: 20),
 
-            // 3. Выбор иконки
             const Text(
               "Выберите иконку:",
               style: TextStyle(

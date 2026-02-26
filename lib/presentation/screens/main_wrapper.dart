@@ -1,6 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:confetti/confetti.dart'; // <--- ДОБАВИЛИ
+import 'package:confetti/confetti.dart';
 import '../../core/theme.dart';
 import 'home_screen.dart';
 import 'stats_screen.dart';
@@ -16,7 +16,7 @@ class MainWrapper extends StatefulWidget {
 
 class _MainWrapperState extends State<MainWrapper> {
   int _currentIndex = 0;
-  late ConfettiController _confettiController; // <--- КОНТРОЛЛЕР САЛЮТА
+  late ConfettiController _confettiController;
 
   final List<Widget> _screens = [
     const HomeScreen(),
@@ -28,7 +28,6 @@ class _MainWrapperState extends State<MainWrapper> {
   @override
   void initState() {
     super.initState();
-    // Инициализируем салют (будет длиться 2 секунды)
     _confettiController = ConfettiController(duration: const Duration(seconds: 2));
   }
 
@@ -45,7 +44,6 @@ class _MainWrapperState extends State<MainWrapper> {
   }
 
   Future<void> _onAddTapped() async {
-    // Ждем результат закрытия шторки
     final result = await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -53,9 +51,8 @@ class _MainWrapperState extends State<MainWrapper> {
       builder: (context) => const AddTransactionSheet(),
     );
 
-    // Если вернулся true (добавили доход) -> запускаем праздник
     if (result == true) {
-      setState(() => _currentIndex = 0); // Переключаем на главную, чтобы видеть баланс
+      setState(() => _currentIndex = 0);
       _confettiController.play();
     }
   }
@@ -63,7 +60,6 @@ class _MainWrapperState extends State<MainWrapper> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // 👇 ИСПОЛЬЗУЕМ STACK ДЛЯ НАЛОЖЕНИЯ САЛЮТА ПОВЕРХ ЭКРАНОВ
       body: Stack(
         alignment: Alignment.topCenter,
         children: [
@@ -71,14 +67,13 @@ class _MainWrapperState extends State<MainWrapper> {
             index: _currentIndex,
             children: _screens,
           ),
-          // 👇 САМ ВИДЖЕТ КОНФЕТТИ
           ConfettiWidget(
             confettiController: _confettiController,
-            blastDirection: pi / 2, // Направление: вниз
-            maxBlastForce: 15, // Сила выстрела
+            blastDirection: pi / 2,
+            maxBlastForce: 15,
             minBlastForce: 5,
-            emissionFrequency: 0.05, // Плотность
-            numberOfParticles: 20, // Количество частиц
+            emissionFrequency: 0.05,
+            numberOfParticles: 20,
             gravity: 0.2,
             colors: const [
               AppColors.primaryMint,

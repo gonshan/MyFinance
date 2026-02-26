@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:http/http.dart' as http;
+import 'package:html/parser.dart' as parser;
 import '../../core/theme.dart';
 
 class QRScannerScreen extends StatefulWidget {
@@ -10,8 +12,8 @@ class QRScannerScreen extends StatefulWidget {
   State<QRScannerScreen> createState() => _QRScannerScreenState();
 }
 
-class _QRScannerScreenState extends State<QRScannerScreen> {
-  // Контроллер камеры
+class _QRScannerScreenState extends State<QRScannerScreen> with WidgetsBindingObserver {
+  
   final MobileScannerController controller = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
     returnImage: false,
@@ -20,12 +22,35 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
   bool _isScanned = false;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this); 
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    switch (state) {
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+        return;
+      case AppLifecycleState.resumed:
+        _isScanned = false;
+        controller.start();
+        break;
+      case AppLifecycleState.inactive:
+        controller.stop();
+        break;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // 1. САМА КАМЕРА
           MobileScanner(
             controller: controller,
             onDetect: (capture) {
@@ -39,15 +64,11 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
               }
             },
           ),
-
-          // 2. ЗАТЕМНЕНИЕ С ВЫРЕЗОМ (Надежный вариант через CustomPainter)
           Positioned.fill(
             child: CustomPaint(
               painter: _ScannerOverlayPainter(),
             ),
           ),
-
-          // 3. ИНТЕРФЕЙС (Текст и кнопки)
           SafeArea(
             child: Column(
               children: [
@@ -56,12 +77,10 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Кнопка Назад
                       IconButton(
                         icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
                         onPressed: () => Navigator.pop(context),
                       ),
-                      // Кнопка Фонарика
                       ValueListenableBuilder(
                         valueListenable: controller,
                         builder: (context, state, child) {
@@ -96,8 +115,6 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
               ],
             ),
           ),
-
-          // 4. МЯТНАЯ РАМКА ПРИЦЕЛА
           Center(
             child: Container(
               height: 280,
@@ -113,80 +130,108 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     );
   }
 
-  // --- УМНЫЙ ПАРСЕР ЧЕКОВ ---
-  void _processCode(String rawData) {
+  Future<void> _processCode(String rawData) async {
     setState(() => _isScanned = true);
     Map<String, dynamic> result = {};
 
     try {
-      // 1. Попытка прочитать обычный JSON чека
-      final decoded = jsonDecode(rawData);
-      if (decoded is Map<String, dynamic>) {
-        if (decoded.containsKey('s')) result['amount'] = decoded['s'];
-        if (decoded.containsKey('sum')) result['amount'] = decoded['sum'];
-        if (decoded.containsKey('c')) result['category'] = decoded['c'];
-        if (decoded.containsKey('cat')) result['category'] = decoded['cat'];
-        if (decoded.containsKey('d')) result['date'] = decoded['d'];
-        if (decoded.containsKey('date')) result['date'] = decoded['date'];
+      if (rawData.startsWith('http') && rawData.contains('skko.by')) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Загружаем данные чека из базы СККО...'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+
+        final response = await http.get(Uri.parse(rawData));
+        
+        if (response.statusCode == 200) {
+          var document = parser.parse(response.body);
+          
+          var sumElement = document.querySelector('.total-sum'); 
+          if (sumElement != null) {
+            String sumText = sumElement.text.replaceAll(RegExp(r'[^0-9.,]'), '').replaceAll(',', '.');
+            result['amount'] = sumText;
+          }
+
+          var dateElement = document.querySelector('.receipt-date');
+          if (dateElement != null) {
+          }
+          
+          result['category'] = 'Покупки';
+        }
+      } 
+      else if (rawData.startsWith('{')) {
+        try {
+          final decoded = jsonDecode(rawData);
+          if (decoded is Map<String, dynamic>) {
+            if (decoded.containsKey('s')) result['amount'] = decoded['s'].toString();
+            if (decoded.containsKey('sum')) result['amount'] = decoded['sum'].toString();
+            if (decoded.containsKey('c')) result['category'] = decoded['c'].toString();
+            if (decoded.containsKey('cat')) result['category'] = decoded['cat'].toString();
+            if (decoded.containsKey('d')) result['date'] = decoded['d'].toString();
+            if (decoded.containsKey('date')) result['date'] = decoded['date'].toString();
+          }
+        } catch (_) {}
       }
     } catch (e) {
-      // 2. Умный парсинг официальных фискальных чеков (с параметрами t= и s=)
-      
-      // Ищем сумму (например, s=120.50 или sum=45)
-      final sumMatch = RegExp(r'(?:s|sum)=([0-9]+(?:\.[0-9]{1,2})?)').firstMatch(rawData);
+      debugPrint('Ошибка загрузки или парсинга СККО: $e');
+    }
+
+    if (!result.containsKey('amount')) {
+      final sumMatch = RegExp(r'(?:s|sum)=([0-9]+(?:[\.,][0-9]{1,2})?)').firstMatch(rawData);
       if (sumMatch != null) {
-        result['amount'] = sumMatch.group(1);
+        result['amount'] = sumMatch.group(1)!.replaceAll(',', '.');
       }
-      
-      // Ищем дату (например, t=20230225T1503)
+
       final dateMatch = RegExp(r't=([0-9]{8}T[0-9]{4,6})').firstMatch(rawData);
       if (dateMatch != null) {
         try {
-          String dateStr = dateMatch.group(1)!; 
+          String dateStr = dateMatch.group(1)!;
           int year = int.parse(dateStr.substring(0, 4));
           int month = int.parse(dateStr.substring(4, 6));
           int day = int.parse(dateStr.substring(6, 8));
           result['date'] = DateTime(year, month, day).toIso8601String();
         } catch (_) {}
       }
-      
-      // Авто-угадывание категории по тексту ссылки
+
       final lowerData = rawData.toLowerCase();
       if (lowerData.contains("euroopt") || lowerData.contains("sosedi") || lowerData.contains("green") || lowerData.contains("gippo")) {
-         result['category'] = "Еда";
+        result['category'] = "Еда";
       } else if (lowerData.contains("yandex") || lowerData.contains("taxi") || lowerData.contains("uber")) {
-         result['category'] = "Транспорт";
+        result['category'] = "Транспорт";
       } else if (lowerData.contains("zara") || lowerData.contains("markformelle") || lowerData.contains("clothes")) {
-         result['category'] = "Одежда";
+        result['category'] = "Одежда";
       } else if (lowerData.contains("apteka") || lowerData.contains("pharma") || lowerData.contains("health")) {
-         result['category'] = "Здоровье";
+        result['category'] = "Здоровье";
       }
     }
 
-    Navigator.pop(context, result.isNotEmpty ? result : null);
+    if (mounted) {
+      Navigator.pop(context, result);
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this); 
     controller.dispose();
     super.dispose();
   }
 }
 
-// Художник (CustomPainter) для идеального вырезания прозрачного квадрата
 class _ScannerOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    // Темный фон (альфа = 0.7)
     final backgroundPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.7)
+      ..color = Colors.black.withOpacity(0.7)
       ..style = PaintingStyle.fill;
 
-    // Внешний контур всего экрана
     final backgroundPath = Path()
       ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
 
-    // Внутренний контур (наша "дырка")
     final cutoutPath = Path()
       ..addRRect(
         RRect.fromRectAndRadius(
@@ -199,7 +244,6 @@ class _ScannerOverlayPainter extends CustomPainter {
         ),
       );
 
-    // Вычитаем дырку из фона и рисуем
     final path = Path.combine(PathOperation.difference, backgroundPath, cutoutPath);
     canvas.drawPath(path, backgroundPaint);
   }

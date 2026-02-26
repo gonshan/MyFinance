@@ -13,22 +13,50 @@ import 'presentation/screens/pin_screen.dart';
 import 'presentation/screens/onboarding_screen.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('ru', null);
-  await NotificationService().init();
+  try {
+    WidgetsFlutterBinding.ensureInitialized();
+    await initializeDateFormatting('ru', null);
 
-  // Проверяем, первый ли это запуск
-  final prefs = await SharedPreferences.getInstance();
-  final bool isFirstRun = prefs.getBool('is_first_run') ?? true;
+    try {
+      await NotificationService().init();
+    } catch (e) {
+      debugPrint("Предупреждение: Ошибка инициализации уведомлений: $e");
+    }
 
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-    ),
-  );
+    final prefs = await SharedPreferences.getInstance();
+    final bool isFirstRun = prefs.getBool('is_first_run') ?? true;
 
-  runApp(MyApp(isFirstRun: isFirstRun));
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+      ),
+    );
+
+    runApp(MyApp(isFirstRun: isFirstRun));
+  } catch (e, stackTrace) {
+    debugPrint('КРИТИЧЕСКАЯ ОШИБКА ПРИ ЗАПУСКЕ: $e');
+    debugPrint('$stackTrace');
+
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Center(
+                child: Text(
+                  'Критическая ошибка запуска:\n\n$e',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.red, fontSize: 16),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -39,7 +67,6 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      // 👇 ИСПРАВЛЕНИЕ: Вызываем loadData() сразу при создании провайдера
       providers: [
         ChangeNotifierProvider(
           create: (_) => TransactionProvider()..loadData(),

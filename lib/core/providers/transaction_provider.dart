@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // <--- ДОБАВЛЕН ИМПОРТ
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/local/database_service.dart';
 import '../../data/models/transaction_model.dart';
 import '../../data/models/category_model.dart';
@@ -13,7 +13,6 @@ class TransactionProvider extends ChangeNotifier {
   bool _isLoading = true;
   List<CurrencyRate> _exchangeRates = [];
   
-  // 👇 НОВАЯ ПЕРЕМЕННАЯ ДЛЯ ВАЛЮТЫ
   String _currency = 'BYN';
 
   List<TransactionModel> get transactions => _transactions;
@@ -22,14 +21,12 @@ class TransactionProvider extends ChangeNotifier {
   bool get isLoading => _isLoading; 
   List<CurrencyRate> get exchangeRates => _exchangeRates;
   
-  // 👇 ГЕТТЕР ДЛЯ ВАЛЮТЫ
   String get currency => _currency;
 
   Future<void> loadData() async {
     _isLoading = true;
     notifyListeners();
 
-    // Загружаем сохраненную валюту
     final prefs = await SharedPreferences.getInstance();
     _currency = prefs.getString('main_currency') ?? 'BYN';
 
@@ -44,15 +41,13 @@ class TransactionProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // 👇 НОВЫЙ МЕТОД: Обновление валюты
   Future<void> updateCurrency(String newCurrency) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('main_currency', newCurrency);
     _currency = newCurrency;
-    notifyListeners(); // Обновляем весь UI
+    notifyListeners();
   }
 
-  // --- Транзакции ---
   Future<void> addTransaction(TransactionModel transaction) async {
     final int id = await DatabaseService.instance.createTransaction(transaction);
     final newTransaction = TransactionModel(
@@ -93,7 +88,6 @@ class TransactionProvider extends ChangeNotifier {
     }
   }
 
-  // --- Категории ---
   Future<void> addCategory(String name, int iconCode, double limit) async {
     final newCat = CategoryModel(
       name: name,

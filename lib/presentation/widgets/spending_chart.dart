@@ -42,7 +42,6 @@ class _SpendingChartState extends State<SpendingChart> {
           minY: 0,
           barTouchData: BarTouchData(
             touchTooltipData: BarTouchTooltipData(
-              // 👇 ИСПРАВЛЕНИЕ: Используем tooltipBgColor для твоей версии fl_chart
               tooltipBgColor: AppColors.textDark,
               tooltipRoundedRadius: 8,
               getTooltipItem: (group, groupIndex, rod, rodIndex) {

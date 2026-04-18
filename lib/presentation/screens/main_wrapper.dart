@@ -5,6 +5,7 @@ import '../../core/theme.dart';
 import 'home_screen.dart';
 import 'stats_screen.dart';
 import 'settings_screen.dart';
+import 'wallet_screen.dart'; // <-- Импортируем наш новый экран
 import '../widgets/add_transaction_sheet.dart';
 
 class MainWrapper extends StatefulWidget {
@@ -18,10 +19,11 @@ class _MainWrapperState extends State<MainWrapper> {
   int _currentIndex = 0;
   late ConfettiController _confettiController;
 
+  // Обновленный список экранов
   final List<Widget> _screens = [
     const HomeScreen(),
     const StatsScreen(),
-    const Scaffold(body: Center(child: Text("Раздел Кошелек в разработке"))),
+    const WalletScreen(), // <-- Заменили заглушку на рабочий экран
     const SettingsScreen(),
   ];
 

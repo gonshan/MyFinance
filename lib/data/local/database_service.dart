@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/transaction_model.dart';
 import '../models/category_model.dart';
+import '../models/discount_card_model.dart'; // <-- Добавлен импорт модели карт
 
 class DatabaseService {
   static final DatabaseService instance = DatabaseService._init();
@@ -22,7 +23,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 2, 
+      version: 3, // <-- Повысили версию до 3 для добавления новой таблицы
       onCreate: _createDB,
       onUpgrade: _onUpgrade, 
     );
@@ -55,12 +56,35 @@ class DatabaseService {
       )
     ''');
 
+    // Таблица для скидочных карт (при чистой установке приложения)
+    await db.execute('''
+      CREATE TABLE ${DiscountCardFields.table} (
+        ${DiscountCardFields.id} $idType,
+        ${DiscountCardFields.storeName} $textType,
+        ${DiscountCardFields.code} $textType,
+        ${DiscountCardFields.format} $textType,
+        ${DiscountCardFields.color} $intType
+      )
+    ''');
+
     await _seedCategories(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await db.execute('ALTER TABLE ${CategoryFields.table} ADD COLUMN ${CategoryFields.budgetLimit} REAL DEFAULT 0.0');
+    }
+    if (oldVersion < 3) {
+      // Миграция для версии 3: Добавляем таблицу скидочных карт для существующих пользователей
+      await db.execute('''
+        CREATE TABLE ${DiscountCardFields.table} (
+          ${DiscountCardFields.id} INTEGER PRIMARY KEY AUTOINCREMENT,
+          ${DiscountCardFields.storeName} TEXT NOT NULL,
+          ${DiscountCardFields.code} TEXT NOT NULL,
+          ${DiscountCardFields.format} TEXT NOT NULL,
+          ${DiscountCardFields.color} INTEGER NOT NULL
+        )
+      ''');
     }
   }
 
@@ -79,6 +103,8 @@ class DatabaseService {
       await db.insert(CategoryFields.table, cat.toMap());
     }
   }
+
+  // --- Методы для Транзакций ---
 
   Future<int> createTransaction(TransactionModel transaction) async {
     final db = await instance.database;
@@ -112,6 +138,8 @@ class DatabaseService {
     return income - expense;
   }
 
+  // --- Методы для Категорий ---
+
   Future<int> createCategory(CategoryModel category) async {
     final db = await instance.database;
     return await db.insert(CategoryFields.table, category.toMap());
@@ -131,5 +159,28 @@ class DatabaseService {
   Future<int> updateCategory(CategoryModel category) async {
     final db = await instance.database;
     return await db.update(CategoryFields.table, category.toMap(), where: '${CategoryFields.id} = ?', whereArgs: [category.id]);
+  }
+
+  // --- Методы для Скидочных Карт ---
+
+  Future<int> createDiscountCard(DiscountCardModel card) async {
+    final db = await instance.database;
+    return await db.insert(DiscountCardFields.table, card.toMap());
+  }
+
+  Future<List<DiscountCardModel>> getAllDiscountCards() async {
+    final db = await instance.database;
+    final result = await db.query(DiscountCardFields.table, orderBy: '${DiscountCardFields.storeName} ASC');
+    return result.map((json) => DiscountCardModel.fromMap(json)).toList();
+  }
+
+  Future<int> deleteDiscountCard(int id) async {
+    final db = await instance.database;
+    return await db.delete(DiscountCardFields.table, where: '${DiscountCardFields.id} = ?', whereArgs: [id]);
+  }
+
+  Future<int> updateDiscountCard(DiscountCardModel card) async {
+    final db = await instance.database;
+    return await db.update(DiscountCardFields.table, card.toMap(), where: '${DiscountCardFields.id} = ?', whereArgs: [card.id]);
   }
 }

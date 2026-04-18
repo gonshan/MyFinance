@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart'; 
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/theme.dart';
 import 'core/providers/transaction_provider.dart';
+import 'core/providers/discount_card_provider.dart'; // <-- Добавили импорт
 import 'core/services/notification_service.dart';
 import 'presentation/screens/pin_screen.dart';
 import 'presentation/screens/onboarding_screen.dart';
@@ -70,6 +71,10 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(
           create: (_) => TransactionProvider()..loadData(),
+        ),
+        // Регистрируем провайдер для скидочных карт и сразу загружаем их из БД
+        ChangeNotifierProvider(
+          create: (_) => DiscountCardProvider()..loadCards(),
         ),
       ],
       child: MaterialApp(

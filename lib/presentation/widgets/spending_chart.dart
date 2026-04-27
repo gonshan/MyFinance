@@ -24,6 +24,11 @@ class _SpendingChartState extends State<SpendingChart> {
 
   @override
   Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    final colorScheme = Theme.of(context).colorScheme;
+    final onSurfaceColor = colorScheme.onSurface;
+    final textGrey = AppColors.textGrey(brightness);
+
     double maxIncome = widget.weeklyIncome.isEmpty
         ? 0
         : widget.weeklyIncome.reduce(max);
@@ -42,14 +47,14 @@ class _SpendingChartState extends State<SpendingChart> {
           minY: 0,
           barTouchData: BarTouchData(
             touchTooltipData: BarTouchTooltipData(
-              tooltipBgColor: AppColors.textDark,
+              tooltipBgColor: colorScheme.inverseSurface,
               tooltipRoundedRadius: 8,
               getTooltipItem: (group, groupIndex, rod, rodIndex) {
                 String value = rod.toY.toStringAsFixed(2);
                 return BarTooltipItem(
                   "$value ${widget.currency}",
-                  const TextStyle(
-                    color: Colors.white,
+                  TextStyle(
+                    color: colorScheme.onInverseSurface,
                     fontWeight: FontWeight.bold,
                   ),
                 );
@@ -91,7 +96,7 @@ class _SpendingChartState extends State<SpendingChart> {
             show: true,
             drawVerticalLine: false,
             getDrawingHorizontalLine: (value) => FlLine(
-              color: AppColors.textGrey.withValues(alpha: 0.1),
+              color: textGrey.withValues(alpha: 0.1),
               strokeWidth: 1,
             ),
           ),
@@ -123,8 +128,8 @@ class _SpendingChartState extends State<SpendingChart> {
   }
 
   Widget _getBottomTitles(double value, TitleMeta meta) {
+    final textGrey = AppColors.textGrey(Theme.of(context).brightness);
     const style = TextStyle(
-      color: AppColors.textGrey,
       fontWeight: FontWeight.bold,
       fontSize: 12,
     );
@@ -156,7 +161,7 @@ class _SpendingChartState extends State<SpendingChart> {
     }
     return SideTitleWidget(
       axisSide: meta.axisSide,
-      child: Text(text, style: style),
+      child: Text(text, style: style.copyWith(color: textGrey)),
     );
   }
 }

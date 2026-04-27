@@ -54,8 +54,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final brightness = Theme.of(context).brightness;
+    final textGrey = AppColors.textGrey(brightness);
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: colorScheme.surface,
       body: SafeArea(
         child: Column(
           children: [
@@ -63,10 +67,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               alignment: Alignment.topRight,
               child: TextButton(
                 onPressed: _finishOnboarding,
-                child: const Text("Пропустить", style: TextStyle(color: AppColors.textGrey, fontSize: 16)),
+                child: Text(
+                  "Пропустить",
+                  style: TextStyle(color: textGrey, fontSize: 16),
+                ),
               ),
             ),
-            
+
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
@@ -82,18 +89,30 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         NeumorphicCard(
                           padding: const EdgeInsets.all(40),
                           borderRadius: 100,
-                          child: Icon(item['icon'], size: 80, color: item['color']),
+                          child: Icon(
+                            item['icon'] as IconData,
+                            size: 80,
+                            color: item['color'] as Color,
+                          ),
                         ),
                         const SizedBox(height: 50),
                         Text(
-                          item['title'],
-                          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.textDark),
+                          item['title'] as String,
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onSurface,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 20),
                         Text(
-                          item['desc'],
-                          style: const TextStyle(fontSize: 16, color: AppColors.textGrey, height: 1.5),
+                          item['desc'] as String,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: textGrey,
+                            height: 1.5,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -116,7 +135,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         height: 8,
                         width: _currentPage == index ? 24 : 8,
                         decoration: BoxDecoration(
-                          color: _currentPage == index ? AppColors.primaryMint : AppColors.textGrey.withOpacity(0.3),
+                          color: _currentPage == index
+                              ? AppColors.primaryMint
+                              : textGrey.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(4),
                         ),
                       );
@@ -129,20 +150,30 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         _finishOnboarding();
                       } else {
                         _pageController.nextPage(
-                          duration: const Duration(milliseconds: 300), 
+                          duration: const Duration(milliseconds: 300),
                           curve: Curves.easeInOut,
                         );
                       }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryMint,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 30,
+                        vertical: 15,
+                      ),
                       elevation: 0,
                     ),
                     child: Text(
                       _currentPage == _pages.length - 1 ? "Начать" : "Далее",
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
                 ],

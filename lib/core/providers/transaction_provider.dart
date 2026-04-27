@@ -11,14 +11,14 @@ class TransactionProvider extends ChangeNotifier {
   double _balance = 0.0;
   bool _isLoading = true;
   
-  List<dynamic> _exchangeRates = [];
+  List<CurrencyRate> _exchangeRates = [];
   String _currency = 'BYN';
 
   List<TransactionModel> get transactions => _transactions;
   List<CategoryModel> get categories => _categories;
   double get balance => _balance;
   bool get isLoading => _isLoading;
-  List<dynamic> get exchangeRates => _exchangeRates;
+  List<CurrencyRate> get exchangeRates => _exchangeRates;
   String get currency => _currency;
 
   Future<void> loadData() async {
@@ -28,7 +28,6 @@ class TransactionProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     _currency = prefs.getString('main_currency') ?? 'BYN';
 
-    // Загружаем всё из БД
     _transactions = await DatabaseService.instance.getAllTransactions();
     _categories = await DatabaseService.instance.getAllCategories();
     _balance = await DatabaseService.instance.getBalance();
@@ -52,7 +51,7 @@ class TransactionProvider extends ChangeNotifier {
 
   Future<void> addTransaction(TransactionModel transaction) async {
     await DatabaseService.instance.createTransaction(transaction);
-    await loadData(); // Перезагружаем данные, чтобы обновить баланс и списки
+    await loadData();
   }
 
   Future<void> deleteTransaction(int id) async {

@@ -228,15 +228,24 @@ class _PinScreenState extends State<PinScreen>
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final brightness = Theme.of(context).brightness;
+    final isDark = brightness == Brightness.dark;
+    final textGrey = AppColors.textGrey(brightness);
+    final onSurfaceColor = colorScheme.onSurface;
+
     if (_isLoading) {
-      return const Scaffold(backgroundColor: AppColors.background);
+      return Scaffold(
+        backgroundColor: colorScheme.surface,
+        body: const Center(child: CircularProgressIndicator()),
+      );
     }
 
     final isCreating = _storedPin == null;
     final isLocked = _lockoutEndTime != null;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: colorScheme.surface,
       body: SafeArea(
         child: SizedBox(
           width: double.infinity,
@@ -266,9 +275,9 @@ class _PinScreenState extends State<PinScreen>
                 Text(
                   "Попробуйте через $_timerText",
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
-                    color: AppColors.textGrey,
+                    color: textGrey,
                   ),
                 ),
               ] else ...[
@@ -292,7 +301,7 @@ class _PinScreenState extends State<PinScreen>
                     fontWeight: FontWeight.bold,
                     color: _isError
                         ? AppColors.secondarySalmon
-                        : AppColors.textDark,
+                        : onSurfaceColor,
                   ),
                 ),
               ],
@@ -322,12 +331,12 @@ class _PinScreenState extends State<PinScreen>
                           color: isFilled
                               ? (_isError
                                     ? AppColors.secondarySalmon
-                                    : AppColors.textDark)
+                                    : onSurfaceColor)
                               : Colors.transparent,
                           border: Border.all(
                             color: _isError
                                 ? AppColors.secondarySalmon
-                                : AppColors.textDark,
+                                : onSurfaceColor,
                             width: 2,
                           ),
                           shape: BoxShape.circle,
@@ -343,11 +352,11 @@ class _PinScreenState extends State<PinScreen>
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _buildRow(['1', '2', '3']),
+                    _buildRow(['1', '2', '3'], isDark),
                     const SizedBox(height: 15),
-                    _buildRow(['4', '5', '6']),
+                    _buildRow(['4', '5', '6'], isDark),
                     const SizedBox(height: 15),
-                    _buildRow(['7', '8', '9']),
+                    _buildRow(['7', '8', '9'], isDark),
                     const SizedBox(height: 15),
                     SizedBox(
                       width: 240,
@@ -373,8 +382,8 @@ class _PinScreenState extends State<PinScreen>
                                 : null,
                           ),
 
-                          _buildKey('0'),
-                          _buildBackspace(),
+                          _buildKey('0', isDark),
+                          _buildBackspace(isDark),
                         ],
                       ),
                     ),
@@ -389,17 +398,40 @@ class _PinScreenState extends State<PinScreen>
     );
   }
 
-  Widget _buildRow(List<String> keys) {
+  Widget _buildRow(List<String> keys, bool isDark) {
     return SizedBox(
       width: 240,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: keys.map((k) => _buildKey(k)).toList(),
+        children: keys.map((k) => _buildKey(k, isDark)).toList(),
       ),
     );
   }
 
-  Widget _buildKey(String val) {
+  Widget _buildKey(String val, bool isDark) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final onSurfaceColor = colorScheme.onSurface;
+
+    // В тёмной теме клавиши плоские, без теней, с тонкой обводкой
+    final boxShadow = isDark
+        ? <BoxShadow>[]
+        : [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 5,
+              offset: const Offset(2, 2),
+            ),
+            BoxShadow(
+              color: Colors.white,
+              blurRadius: 5,
+              offset: const Offset(-2, -2),
+            ),
+          ];
+
+    final border = isDark
+        ? Border.all(color: Colors.white.withValues(alpha: 0.15))
+        : null;
+
     return InkWell(
       onTap: () => _onKeyTap(val),
       borderRadius: BorderRadius.circular(35),
@@ -408,34 +440,46 @@ class _PinScreenState extends State<PinScreen>
         height: 65,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: colorScheme.surface,
           shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 5,
-              offset: const Offset(2, 2),
-            ),
-            const BoxShadow(
-              color: Colors.white,
-              blurRadius: 5,
-              offset: Offset(-2, -2),
-            ),
-          ],
+          boxShadow: boxShadow,
+          border: border,
         ),
         child: Text(
           val,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.bold,
-            color: AppColors.textDark,
+            color: onSurfaceColor,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildBackspace() {
+  Widget _buildBackspace(bool isDark) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final onSurfaceColor = colorScheme.onSurface;
+
+    final boxShadow = isDark
+        ? <BoxShadow>[]
+        : [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 5,
+              offset: const Offset(2, 2),
+            ),
+            BoxShadow(
+              color: Colors.white,
+              blurRadius: 5,
+              offset: const Offset(-2, -2),
+            ),
+          ];
+
+    final border = isDark
+        ? Border.all(color: Colors.white.withValues(alpha: 0.15))
+        : null;
+
     return InkWell(
       onTap: _onBackspace,
       borderRadius: BorderRadius.circular(35),
@@ -443,9 +487,15 @@ class _PinScreenState extends State<PinScreen>
         width: 65,
         height: 65,
         alignment: Alignment.center,
-        child: const Icon(
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          shape: BoxShape.circle,
+          boxShadow: boxShadow,
+          border: border,
+        ),
+        child: Icon(
           Icons.backspace_rounded,
-          color: AppColors.textGrey,
+          color: onSurfaceColor,
           size: 28,
         ),
       ),

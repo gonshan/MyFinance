@@ -22,8 +22,12 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with AutomaticKeepAliveClientMixin {
   DateTime _selectedDate = DateTime.now();
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -54,10 +58,8 @@ class _HomeScreenState extends State<HomeScreen> {
       lastDate: DateTime(2030),
       builder: (context, child) {
         return Theme(
-          data: ThemeData.light().copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.primaryMint,
-            ),
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(primary: AppColors.primaryMint),
           ),
           child: child!,
         );
@@ -115,11 +117,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final provider = Provider.of<TransactionProvider>(context);
+    final brightness = Theme.of(context).brightness;
+    final colorScheme = Theme.of(context).colorScheme;
+    final surfaceColor = colorScheme.surface;
+    final onSurfaceColor = colorScheme.onSurface;
+    final textGrey = AppColors.textGrey(brightness);
 
     if (provider.isLoading) {
       return Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: surfaceColor,
         body: SafeArea(child: _buildShimmerLoading()),
       );
     }
@@ -136,7 +144,6 @@ class _HomeScreenState extends State<HomeScreen> {
     DateTime startOfWeek = _selectedDate.subtract(
       Duration(days: _selectedDate.weekday - 1),
     );
-
     startOfWeek = DateTime(
       startOfWeek.year,
       startOfWeek.month,
@@ -161,7 +168,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }).toList();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: surfaceColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -172,22 +179,19 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 30),
               _buildBalanceCard(provider.balance, currencyFormat),
               const SizedBox(height: 20),
-
-              // ИСПРАВЛЕН тип List<CurrencyRate>
               if (provider.exchangeRates.isNotEmpty)
-  _buildExchangeRates(provider.exchangeRates.cast<CurrencyRate>()),
-
+                _buildExchangeRates(provider.exchangeRates),
               const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Flexible(
+                  Flexible(
                     child: Text(
                       "Доходы и Расходы",
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.textDark,
+                        color: onSurfaceColor,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -196,11 +200,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     height: 40,
                     margin: const EdgeInsets.only(left: 8),
                     decoration: BoxDecoration(
-                      color: AppColors.surface,
+                      color: surfaceColor,
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.shadowDark.withValues(alpha: 0.1),
+                          color: Colors.black.withValues(alpha: 0.05),
                           blurRadius: 10,
                           offset: const Offset(2, 2),
                         ),
@@ -212,10 +216,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         IconButton(
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(minWidth: 24),
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.chevron_left_rounded,
                             size: 20,
-                            color: AppColors.textGrey,
+                            color: textGrey,
                           ),
                           onPressed: () => _changeMonth(-1),
                         ),
@@ -224,10 +228,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Row(
                             children: [
                               const SizedBox(width: 2),
-                              const Icon(
+                              Icon(
                                 Icons.calendar_month_outlined,
                                 size: 14,
-                                color: AppColors.primaryMint,
+                                color: colorScheme.primary,
                               ),
                               const SizedBox(width: 4),
                               Text(
@@ -238,7 +242,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                 style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w800,
-                                  color: AppColors.textDark,
                                   letterSpacing: 0.5,
                                 ),
                               ),
@@ -249,10 +252,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         IconButton(
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(minWidth: 24),
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.chevron_right_rounded,
                             size: 20,
-                            color: AppColors.textGrey,
+                            color: textGrey,
                           ),
                           onPressed: () => _changeMonth(1),
                         ),
@@ -287,6 +290,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeader() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -295,22 +299,22 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.primaryMint.withValues(alpha: 0.2),
+                color: colorScheme.primary.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.account_balance_wallet_rounded,
-                color: AppColors.primaryMint,
+                color: colorScheme.primary,
                 size: 20,
               ),
             ),
             const SizedBox(width: 10),
-            const Text(
+            Text(
               "MyFinance",
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w900,
-                color: AppColors.textDark,
+                color: colorScheme.onSurface,
                 letterSpacing: 0.5,
               ),
             ),
@@ -320,9 +324,9 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.all(12),
           borderRadius: 15,
           onTap: _onScanAndAdd,
-          child: const Icon(
+          child: Icon(
             Icons.qr_code_scanner_rounded,
-            color: AppColors.textDark,
+            color: colorScheme.onSurface,
           ),
         ),
       ],
@@ -330,6 +334,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildBalanceCard(double balance, NumberFormat format) {
+    final brightness = Theme.of(context).brightness;
+    final colorScheme = Theme.of(context).colorScheme;
+    final onSurfaceColor = colorScheme.onSurface;
+    final textGrey = AppColors.textGrey(brightness);
+
     return NeumorphicCard(
       padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 25),
       borderRadius: 30,
@@ -337,9 +346,9 @@ class _HomeScreenState extends State<HomeScreen> {
         width: double.infinity,
         child: Column(
           children: [
-            const Text(
+            Text(
               "Текущий баланс",
-              style: TextStyle(fontSize: 14, color: AppColors.textGrey),
+              style: TextStyle(fontSize: 14, color: textGrey),
             ),
             const SizedBox(height: 15),
             Text(
@@ -347,24 +356,22 @@ class _HomeScreenState extends State<HomeScreen> {
               style: TextStyle(
                 fontSize: 36,
                 fontWeight: FontWeight.w800,
-                color: balance >= 0
-                    ? AppColors.textDark
-                    : AppColors.secondarySalmon,
+                color: balance >= 0 ? onSurfaceColor : Colors.red,
               ),
             ),
             const SizedBox(height: 20),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
               decoration: BoxDecoration(
-                color: AppColors.background,
+                color: colorScheme.surface,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 _getStatusMessage(balance),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textGrey,
+                  color: textGrey,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -386,7 +393,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     for (var t in transactions) {
       String dateKey = dateFormatter.format(t.date);
-
       if (grouped[dateKey] == null) grouped[dateKey] = [];
       grouped[dateKey]!.add(t);
 
@@ -404,7 +410,6 @@ class _HomeScreenState extends State<HomeScreen> {
       itemCount: sortedKeys.length,
       itemBuilder: (context, index) {
         String dateKey = sortedKeys[index];
-
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -412,8 +417,8 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Text(
                 _getDateTitle(dateKey),
-                style: const TextStyle(
-                  color: AppColors.textGrey,
+                style: TextStyle(
+                  color: AppColors.textGrey(Theme.of(context).brightness),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -427,11 +432,9 @@ class _HomeScreenState extends State<HomeScreen> {
               } catch (e) {
                 catModel = null;
               }
-
               double spentInMonth = !t.isIncome
                   ? (categorySpent[t.category] ?? 0.0)
                   : 0.0;
-
               return _buildDismissibleTransaction(
                 t,
                 provider,
@@ -451,10 +454,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final yesterday = DateFormat(
       'yyyy-MM-dd',
     ).format(now.subtract(const Duration(days: 1)));
-
     if (dateKey == today) return "Сегодня";
     if (dateKey == yesterday) return "Вчера";
-
     DateTime date = DateTime.parse(dateKey);
     return DateFormat('d MMMM', 'ru').format(date);
   }
@@ -509,6 +510,11 @@ class _HomeScreenState extends State<HomeScreen> {
     double spent,
     String currency,
   ) {
+    final brightness = Theme.of(context).brightness;
+    final colorScheme = Theme.of(context).colorScheme;
+    final onSurfaceColor = colorScheme.onSurface;
+    final textGrey = AppColors.textGrey(brightness);
+
     IconData icon = Icons.shopping_bag_outlined;
     if (cat != null) icon = IconData(cat.iconCode, fontFamily: 'MaterialIcons');
 
@@ -517,7 +523,6 @@ class _HomeScreenState extends State<HomeScreen> {
     Color progressColor = AppColors.primaryMint;
 
     if (showLimit) {
-      // ИСПРАВЛЕНА ненужная проверка на null
       progress = (spent / cat.budgetLimit).clamp(0.0, 1.0);
       if (progress >= 1.0) {
         progressColor = AppColors.secondarySalmon;
@@ -536,10 +541,10 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.background,
+                  color: colorScheme.surface,
                   borderRadius: BorderRadius.circular(15),
                 ),
-                child: Icon(icon, color: AppColors.textDark, size: 22),
+                child: Icon(icon, color: onSurfaceColor, size: 22),
               ),
               const SizedBox(width: 15),
               Expanded(
@@ -548,19 +553,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Text(
                       t.category,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
-                        color: AppColors.textDark,
+                        color: onSurfaceColor,
                       ),
                     ),
                     if (t.comment.isNotEmpty)
                       Text(
                         t.comment,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textGrey,
-                        ),
+                        style: TextStyle(fontSize: 12, color: textGrey),
                       ),
                   ],
                 ),
@@ -583,7 +585,7 @@ class _HomeScreenState extends State<HomeScreen> {
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
                 value: progress,
-                backgroundColor: AppColors.background,
+                backgroundColor: colorScheme.surface,
                 valueColor: AlwaysStoppedAnimation(progressColor),
                 minHeight: 6,
               ),
@@ -593,12 +595,8 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  // ИСПРАВЛЕНА ненужная проверка на null
                   "Лимит: ${cat.budgetLimit.toStringAsFixed(0)}",
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: AppColors.textGrey,
-                  ),
+                  style: TextStyle(fontSize: 10, color: textGrey),
                 ),
                 Text(
                   spent > cat.budgetLimit
@@ -608,7 +606,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontSize: 10,
                     color: spent > cat.budgetLimit
                         ? AppColors.secondarySalmon
-                        : AppColors.textGrey,
+                        : textGrey,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -620,29 +618,29 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildEmptyState() => Container(
-    padding: const EdgeInsets.all(30),
-    alignment: Alignment.center,
-    child: const Column(
-      children: [
-        Icon(
-          Icons.history_toggle_off_rounded,
-          size: 60,
-          color: AppColors.textGrey,
-        ),
-        SizedBox(height: 10),
-        Text(
-          "В этом месяце операций нет",
-          style: TextStyle(color: AppColors.textGrey),
-        ),
-      ],
-    ),
-  );
+  Widget _buildEmptyState() {
+    final textGrey = AppColors.textGrey(Theme.of(context).brightness);
+    return Container(
+      padding: const EdgeInsets.all(30),
+      alignment: Alignment.center,
+      child: Column(
+        children: [
+          Icon(Icons.history_toggle_off_rounded, size: 60, color: textGrey),
+          const SizedBox(height: 10),
+          Text("В этом месяце операций нет", style: TextStyle(color: textGrey)),
+        ],
+      ),
+    );
+  }
 
   Widget _buildShimmerLoading() {
+    final brightness = Theme.of(context).brightness;
+    final isDark = brightness == Brightness.dark;
     return Shimmer.fromColors(
-      baseColor: AppColors.shadowDark.withValues(alpha: 0.3),
-      highlightColor: Colors.white.withValues(alpha: 0.6),
+      baseColor: AppColors.shadowDark(brightness).withValues(alpha: 0.3),
+      highlightColor: isDark
+          ? Colors.grey.shade800!.withValues(alpha: 0.6)
+          : Colors.white.withValues(alpha: 0.6),
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
         child: Column(
@@ -724,10 +722,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildExchangeRates(List<CurrencyRate> rates) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textGrey = AppColors.textGrey(Theme.of(context).brightness);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.primaryMint.withValues(alpha: 0.3)),
       ),
@@ -745,17 +745,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Text(
                     "${rate.name} (НБРБ)",
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: AppColors.textGrey,
+                      color: textGrey,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   Text(
                     "${rate.rate.toStringAsFixed(4)} BYN",
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
-                      color: AppColors.textDark,
+                      color: colorScheme.onSurface,
                       fontWeight: FontWeight.w800,
                     ),
                   ),

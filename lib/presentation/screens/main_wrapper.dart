@@ -5,7 +5,7 @@ import '../../core/theme.dart';
 import 'home_screen.dart';
 import 'stats_screen.dart';
 import 'settings_screen.dart';
-import 'wallet_screen.dart'; // <-- Импортируем наш новый экран
+import 'wallet_screen.dart';
 import '../widgets/add_transaction_sheet.dart';
 
 class MainWrapper extends StatefulWidget {
@@ -19,12 +19,11 @@ class _MainWrapperState extends State<MainWrapper> {
   int _currentIndex = 0;
   late ConfettiController _confettiController;
 
-  // Обновленный список экранов
   final List<Widget> _screens = [
-    const HomeScreen(),
-    const StatsScreen(),
-    const WalletScreen(), // <-- Заменили заглушку на рабочий экран
-    const SettingsScreen(),
+    const HomeScreen(key: ValueKey('home')),
+    const StatsScreen(key: ValueKey('stats')),
+    const WalletScreen(key: ValueKey('wallet')),
+    const SettingsScreen(key: ValueKey('settings')),
   ];
 
   @override
@@ -40,6 +39,7 @@ class _MainWrapperState extends State<MainWrapper> {
   }
 
   void _onTabTapped(int index) {
+    if (index == _currentIndex) return;
     setState(() {
       _currentIndex = index;
     });
@@ -61,13 +61,34 @@ class _MainWrapperState extends State<MainWrapper> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final brightness = Theme.of(context).brightness;
+    final isDark = brightness == Brightness.dark;
+
     return Scaffold(
       body: Stack(
         alignment: Alignment.topCenter,
         children: [
-          IndexedStack(
-            index: _currentIndex,
-            children: _screens,
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0.0, 0.03),
+                    end: Offset.zero,
+                  ).animate(CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOut,
+                  )),
+                  child: child,
+                ),
+              );
+            },
+            child: _screens[_currentIndex],
           ),
           ConfettiWidget(
             confettiController: _confettiController,
@@ -93,11 +114,15 @@ class _MainWrapperState extends State<MainWrapper> {
           Container(
             height: 80,
             padding: const EdgeInsets.only(bottom: 20, left: 20, right: 20, top: 10),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
               boxShadow: [
-                BoxShadow(color: Colors.black12, blurRadius: 20, offset: Offset(0, -5)),
+                BoxShadow(
+                  color: isDark ? Colors.black54 : Colors.black12,
+                  blurRadius: 20,
+                  offset: const Offset(0, -5),
+                ),
               ],
             ),
             child: Row(
@@ -140,6 +165,10 @@ class _MainWrapperState extends State<MainWrapper> {
 
   Widget _buildNavItem(int index, IconData icon) {
     final isSelected = _currentIndex == index;
+    final colorScheme = Theme.of(context).colorScheme;
+    final textGrey = AppColors.textGrey(Theme.of(context).brightness);
+    final onSurfaceColor = colorScheme.onSurface;
+
     return GestureDetector(
       onTap: () => _onTabTapped(index),
       behavior: HitTestBehavior.opaque,
@@ -148,7 +177,7 @@ class _MainWrapperState extends State<MainWrapper> {
         children: [
           Icon(
             icon,
-            color: isSelected ? AppColors.textDark : AppColors.textGrey.withValues(alpha: 0.5),
+            color: isSelected ? onSurfaceColor : textGrey.withValues(alpha: 0.5),
             size: 28,
           ),
           const SizedBox(height: 5),

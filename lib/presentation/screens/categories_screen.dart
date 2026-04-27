@@ -14,13 +14,12 @@ class CategoriesScreen extends StatefulWidget {
 }
 
 class _CategoriesScreenState extends State<CategoriesScreen> {
-  
   void _showCategoryDialog({CategoryModel? category}) {
     showDialog(
       context: context,
       builder: (ctx) => _CategoryDialog(
         category: category,
-        availableIcons: AppConstants.availableCategoryIcons, 
+        availableIcons: AppConstants.availableCategoryIcons,
       ),
     );
   }
@@ -28,25 +27,30 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<TransactionProvider>(context);
+    final colorScheme = Theme.of(context).colorScheme;
+    final brightness = Theme.of(context).brightness;
+    final textGrey = AppColors.textGrey(brightness);
+    final onSurfaceColor = colorScheme.onSurface;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
+        title: Text(
           "Управление категориями",
           style: TextStyle(
-            color: AppColors.textDark,
+            color: onSurfaceColor,
             fontWeight: FontWeight.bold,
           ),
         ),
-        leading: const BackButton(color: AppColors.textDark),
+        leading: BackButton(color: onSurfaceColor),
+        iconTheme: IconThemeData(color: onSurfaceColor),
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.primaryMint,
+        backgroundColor: colorScheme.primary,
         onPressed: () => _showCategoryDialog(),
-        child: const Icon(Icons.add, color: Colors.white),
+        child: Icon(Icons.add, color: colorScheme.onPrimary),
       ),
       body: ListView.builder(
         padding: const EdgeInsets.all(20),
@@ -81,10 +85,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               },
               onDismissed: (_) => provider.deleteCategory(cat.id!),
               child: NeumorphicCard(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 15,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                 borderRadius: 15,
                 onTap: () => _showCategoryDialog(category: cat),
                 child: Row(
@@ -92,12 +93,12 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppColors.background,
+                        color: colorScheme.surface,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
                         IconData(cat.iconCode, fontFamily: 'MaterialIcons'),
-                        color: AppColors.textDark,
+                        color: onSurfaceColor,
                       ),
                     ),
                     const SizedBox(width: 15),
@@ -107,18 +108,18 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                         children: [
                           Text(
                             cat.name,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.textDark,
+                              color: onSurfaceColor,
                             ),
                           ),
                           if (cat.budgetLimit > 0)
                             Text(
                               "Лимит: ${cat.budgetLimit.toStringAsFixed(0)} BYN",
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
-                                color: AppColors.textGrey,
+                                color: textGrey,
                               ),
                             )
                           else
@@ -126,24 +127,16 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                               "Без лимита",
                               style: TextStyle(
                                 fontSize: 12,
-                                color: AppColors.textGrey.withValues(alpha: 0.5),
+                                color: textGrey.withValues(alpha: 0.5),
                               ),
                             ),
                         ],
                       ),
                     ),
                     if (cat.isDefault)
-                      const Icon(
-                        Icons.lock,
-                        size: 16,
-                        color: AppColors.textGrey,
-                      )
+                      Icon(Icons.lock, size: 16, color: textGrey)
                     else
-                      const Icon(
-                        Icons.edit_rounded,
-                        size: 16,
-                        color: AppColors.primaryMint,
-                      ),
+                      Icon(Icons.edit_rounded, size: 16, color: colorScheme.primary),
                   ],
                 ),
               ),
@@ -176,14 +169,14 @@ class _CategoryDialogState extends State<_CategoryDialog> {
   void initState() {
     super.initState();
     final cat = widget.category;
-    
+
     _nameController = TextEditingController(text: cat?.name ?? '');
-    
+
     final limit = cat?.budgetLimit ?? 0.0;
     _limitController = TextEditingController(
       text: limit > 0 ? limit.toStringAsFixed(0) : '',
     );
-    
+
     _selectedIcon = cat != null
         ? IconData(cat.iconCode, fontFamily: 'MaterialIcons')
         : widget.availableIcons[0];
@@ -200,14 +193,14 @@ class _CategoryDialogState extends State<_CategoryDialog> {
     final name = _nameController.text.trim();
     final limitText = _limitController.text.trim();
     double limit = 0.0;
-    
+
     if (limitText.isNotEmpty) {
       limit = double.tryParse(limitText) ?? 0.0;
     }
 
     if (name.isNotEmpty) {
       final provider = Provider.of<TransactionProvider>(context, listen: false);
-      
+
       if (_isEditing) {
         final updatedCat = CategoryModel(
           id: widget.category!.id,
@@ -226,13 +219,18 @@ class _CategoryDialogState extends State<_CategoryDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final brightness = Theme.of(context).brightness;
+    final textGrey = AppColors.textGrey(brightness);
+    final inputFillColor = brightness == Brightness.light ? Colors.white : Colors.grey[850]!;
+
     return AlertDialog(
-      backgroundColor: AppColors.background,
+      backgroundColor: colorScheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: Text(
         _isEditing ? "Редактировать" : "Новая категория",
-        style: const TextStyle(
-          color: AppColors.textDark,
+        style: TextStyle(
+          color: colorScheme.onSurface,
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -241,28 +239,24 @@ class _CategoryDialogState extends State<_CategoryDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               "Название",
               style: TextStyle(
                 fontSize: 12,
-                color: AppColors.textGrey,
+                color: textGrey,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _nameController,
+              style: TextStyle(color: colorScheme.onSurface),
               decoration: InputDecoration(
                 hintText: "Например: Еда",
-                hintStyle: TextStyle(
-                  color: AppColors.textGrey.withValues(alpha: 0.5),
-                ),
+                hintStyle: TextStyle(color: textGrey.withValues(alpha: 0.5)),
                 filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
+                fillColor: inputFillColor,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -270,46 +264,40 @@ class _CategoryDialogState extends State<_CategoryDialog> {
               ),
             ),
             const SizedBox(height: 20),
-
-            const Text(
+            Text(
               "Месячный бюджет (BYN)",
               style: TextStyle(
                 fontSize: 12,
-                color: AppColors.textGrey,
+                color: textGrey,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _limitController,
+              style: TextStyle(color: colorScheme.onSurface),
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 hintText: "0 - без лимита",
-                hintStyle: TextStyle(
-                  color: AppColors.textGrey.withValues(alpha: 0.5),
-                ),
+                hintStyle: TextStyle(color: textGrey.withValues(alpha: 0.5)),
                 filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
+                fillColor: inputFillColor,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
-                suffixIcon: const Icon(
+                suffixIcon: Icon(
                   Icons.attach_money,
-                  color: AppColors.primaryMint,
+                  color: colorScheme.primary,
                 ),
               ),
             ),
             const SizedBox(height: 20),
-
-            const Text(
+            Text(
               "Выберите иконку:",
               style: TextStyle(
-                color: AppColors.textGrey,
+                color: textGrey,
                 fontWeight: FontWeight.bold,
                 fontSize: 12,
               ),
@@ -332,7 +320,7 @@ class _CategoryDialogState extends State<_CategoryDialog> {
                     onTap: () => setState(() => _selectedIcon = icon),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: isSelected ? AppColors.primaryMint : Colors.white,
+                        color: isSelected ? AppColors.primaryMint : inputFillColor,
                         shape: BoxShape.circle,
                         boxShadow: isSelected
                             ? [
@@ -346,7 +334,7 @@ class _CategoryDialogState extends State<_CategoryDialog> {
                       ),
                       child: Icon(
                         icon,
-                        color: isSelected ? Colors.white : AppColors.textGrey,
+                        color: isSelected ? Colors.white : textGrey,
                         size: 20,
                       ),
                     ),
@@ -360,7 +348,7 @@ class _CategoryDialogState extends State<_CategoryDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text(
+          child: Text(
             "Отмена",
             style: TextStyle(color: AppColors.secondarySalmon),
           ),
@@ -376,8 +364,8 @@ class _CategoryDialogState extends State<_CategoryDialog> {
           onPressed: _saveCategory,
           child: Text(
             _isEditing ? "Сохранить" : "Создать",
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: colorScheme.onPrimary,
               fontWeight: FontWeight.bold,
             ),
           ),

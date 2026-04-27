@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme.dart';
+import '../../core/app_state.dart';               // импорт вместо main.dart
 import '../../core/services/notification_service.dart';
 import '../../core/providers/transaction_provider.dart';
 import '../widgets/neumorphic_card.dart';
@@ -17,12 +18,15 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends State<SettingsScreen> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   bool _useBiometrics = false;
   bool _canCheckBiometrics = false;
-
   bool _notificationsEnabled = false;
   TimeOfDay _notificationTime = const TimeOfDay(hour: 20, minute: 0);
+  bool _isDarkMode = false;
 
   @override
   void initState() {
@@ -35,18 +39,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final auth = LocalAuthentication();
     bool canCheck = false;
     try {
-      canCheck =
-          await auth.canCheckBiometrics && await auth.isDeviceSupported();
-    } catch (e) {
-    }
+      canCheck = await auth.canCheckBiometrics && await auth.isDeviceSupported();
+    } catch (_) {}
     final int hour = prefs.getInt('notification_hour') ?? 20;
     final int minute = prefs.getInt('notification_minute') ?? 0;
+    final bool darkMode = prefs.getBool('dark_mode') ?? false;
 
     setState(() {
       _useBiometrics = prefs.getBool('use_biometrics') ?? false;
       _notificationsEnabled = prefs.getBool('notifications_enabled') ?? false;
       _canCheckBiometrics = canCheck;
       _notificationTime = TimeOfDay(hour: hour, minute: minute);
+      _isDarkMode = darkMode;
     });
   }
 
@@ -61,17 +65,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await prefs.setBool('notifications_enabled', value);
     setState(() => _notificationsEnabled = value);
     if (value) {
-      await NotificationService().scheduleDailyNotification(
-        _notificationTime.hour,
-        _notificationTime.minute,
-      );
+      await NotificationService().scheduleDailyNotification(_notificationTime.hour, _notificationTime.minute);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              "Напоминание включено на ${_formatTime(_notificationTime)}",
-            ),
-          ),
+          SnackBar(content: Text("Напоминание включено на ${_formatTime(_notificationTime)}")),
         );
       }
     } else {
@@ -79,14 +76,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _toggleDarkMode(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('dark_mode', value);
+    setState(() => _isDarkMode = value);
+    // Вызываем смену темы через глобальный ключ
+    myAppKey.currentState?.toggleTheme(value);
+  }
+
   void _pickTime() {
     TimeOfDay tempTime = _notificationTime;
+    final colorScheme = Theme.of(context).colorScheme;
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.background,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-      ),
+      backgroundColor: colorScheme.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
       builder: (BuildContext builder) {
         return Container(
           height: 300,
@@ -96,68 +100,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    "Выберите время",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textDark,
-                    ),
-                  ),
+                  const Text("Выберите время", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   TextButton(
                     onPressed: () async {
                       Navigator.pop(context);
                       setState(() => _notificationTime = tempTime);
                       final prefs = await SharedPreferences.getInstance();
                       await prefs.setInt('notification_hour', tempTime.hour);
-                      await prefs.setInt(
-                        'notification_minute',
-                        tempTime.minute,
-                      );
+                      await prefs.setInt('notification_minute', tempTime.minute);
                       if (_notificationsEnabled) {
-                        await NotificationService().scheduleDailyNotification(
-                          tempTime.hour,
-                          tempTime.minute,
-                        );
+                        await NotificationService().scheduleDailyNotification(tempTime.hour, tempTime.minute);
                       }
                     },
-                    child: const Text(
-                      "Готово",
-                      style: TextStyle(
-                        color: AppColors.primaryMint,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: const Text("Готово", style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
               const SizedBox(height: 20),
               Expanded(
                 child: CupertinoTheme(
-                  data: const CupertinoThemeData(
-                    textTheme: CupertinoTextThemeData(
-                      dateTimePickerTextStyle: TextStyle(
-                        color: AppColors.textDark,
-                        fontSize: 22,
-                      ),
-                    ),
-                  ),
+                  data: CupertinoThemeData(brightness: Theme.of(context).brightness),
                   child: CupertinoDatePicker(
                     mode: CupertinoDatePickerMode.time,
                     use24hFormat: true,
-                    initialDateTime: DateTime(
-                      2023,
-                      1,
-                      1,
-                      _notificationTime.hour,
-                      _notificationTime.minute,
-                    ),
+                    initialDateTime: DateTime(2023, 1, 1, _notificationTime.hour, _notificationTime.minute),
                     onDateTimeChanged: (DateTime newDateTime) {
-                      tempTime = TimeOfDay(
-                        hour: newDateTime.hour,
-                        minute: newDateTime.minute,
-                      );
+                      tempTime = TimeOfDay(hour: newDateTime.hour, minute: newDateTime.minute);
                     },
                   ),
                 ),
@@ -183,35 +151,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
       MaterialPageRoute(builder: (context) => const PinScreen()),
       (route) => false,
     );
-    if (!mounted) return;
   }
 
   void _showResetDialog(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.background,
-        title: const Text(
-          "Сброс PIN-кода",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: const Text(
-          "Вы уверены? При следующем входе приложение попросит создать новый код.",
-        ),
+        backgroundColor: colorScheme.surface,
+        title: const Text("Сброс PIN-кода", style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text("Вы уверены? При следующем входе приложение попросит создать новый код."),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Отмена"),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Отмена")),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               _resetPin(context);
             },
-            child: const Text(
-              "Сбросить",
-              style: TextStyle(color: AppColors.secondarySalmon),
-            ),
+            child: const Text("Сбросить", style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -219,50 +176,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showCurrencyDialog(BuildContext context, TransactionProvider provider) {
-    final currencies = [
-      'BYN',
-      'USD',
-      'EUR',
-      'RUB',
-      'KZT',
-    ];
-
+    final currencies = ['BYN', 'USD', 'EUR', 'RUB', 'KZT'];
+    final colorScheme = Theme.of(context).colorScheme;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.background,
-        title: const Text(
-          "Выберите валюту",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: AppColors.textDark,
-          ),
-        ),
+        backgroundColor: colorScheme.surface,
+        title: const Text("Выберите валюту", style: TextStyle(fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: currencies
-              .map(
-                (c) => ListTile(
-                  title: Text(
-                    c,
-                    style: const TextStyle(
-                      color: AppColors.textDark,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  trailing: provider.currency == c
-                      ? const Icon(
-                          Icons.check_circle_rounded,
-                          color: AppColors.primaryMint,
-                        )
-                      : null,
-                  onTap: () {
-                    provider.updateCurrency(c);
-                    Navigator.pop(ctx);
-                  },
-                ),
-              )
-              .toList(),
+          children: currencies.map((c) => ListTile(
+            title: Text(c),
+            trailing: provider.currency == c ? Icon(Icons.check_circle_rounded, color: colorScheme.primary) : null,
+            onTap: () {
+              provider.updateCurrency(c);
+              Navigator.pop(ctx);
+            },
+          )).toList(),
         ),
       ),
     );
@@ -270,81 +200,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final provider = Provider.of<TransactionProvider>(context);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final brightness = theme.brightness;
+    final textGrey = AppColors.textGrey(brightness);
+    final onSurfaceColor = colorScheme.onSurface;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: colorScheme.surface,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                "Настройки",
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textDark,
-                ),
-              ),
+              Text("Настройки", style: theme.textTheme.headlineMedium?.copyWith(color: onSurfaceColor)),
               const SizedBox(height: 30),
-
-              _buildSectionTitle("Отображение"),
+              _buildSectionTitle("Отображение", textGrey),
               _buildSettingsTile(
                 icon: Icons.payments_rounded,
                 title: "Основная валюта",
                 subtitle: provider.currency,
                 onTap: () => _showCurrencyDialog(context, provider),
+                textGrey: textGrey,
+              ),
+              _buildSettingsTile(
+                icon: Icons.dark_mode_rounded,
+                title: "Тёмная тема",
+                subtitle: _isDarkMode ? "Включена" : "Выключена",
+                trailing: Switch(
+                  value: _isDarkMode,
+                  activeThumbColor: colorScheme.primary,
+                  onChanged: _toggleDarkMode,
+                ),
+                onTap: () {},
+                textGrey: textGrey,
               ),
               const SizedBox(height: 15),
-
-              _buildSectionTitle("Управление"),
+              _buildSectionTitle("Управление", textGrey),
               _buildSettingsTile(
                 icon: Icons.category_rounded,
                 title: "Категории",
                 subtitle: "Добавить или удалить",
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CategoriesScreen(),
-                  ),
-                ),
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const CategoriesScreen())),
+                textGrey: textGrey,
               ),
               const SizedBox(height: 15),
-
-              _buildSectionTitle("Уведомления"),
+              _buildSectionTitle("Уведомления", textGrey),
               NeumorphicCard(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 15,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                 borderRadius: 20,
                 child: Column(
                   children: [
                     Row(
                       children: [
-                        const Icon(
-                          Icons.notifications_active_rounded,
-                          color: AppColors.primaryMint,
-                          size: 28,
-                        ),
+                        Icon(Icons.notifications_active_rounded, color: colorScheme.primary, size: 28),
                         const SizedBox(width: 20),
-                        const Expanded(
-                          child: Text(
-                            "Напоминать о расходах",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textDark,
-                            ),
-                          ),
-                        ),
-                        Switch(
-                          value: _notificationsEnabled,
-                          activeThumbColor: AppColors.primaryMint,
-                          onChanged: _toggleNotifications,
-                        ),
+                        Expanded(child: Text("Напоминать о расходах", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: onSurfaceColor))),
+                        Switch(value: _notificationsEnabled, activeThumbColor: colorScheme.primary, onChanged: _toggleNotifications),
                       ],
                     ),
                     if (_notificationsEnabled) ...[
@@ -354,39 +269,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
-                              "Время напоминания",
-                              style: TextStyle(color: AppColors.textGrey),
-                            ),
+                            Text("Время напоминания", style: TextStyle(color: textGrey)),
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                               decoration: BoxDecoration(
-                                color: AppColors.background,
+                                color: colorScheme.surface,
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: AppColors.primaryMint.withValues(
-                                    alpha: 0.5,
-                                  ),
-                                ),
+                                border: Border.all(color: colorScheme.primary.withValues(alpha: 0.5)),
                               ),
                               child: Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(
-                                    Icons.access_time_rounded,
-                                    size: 16,
-                                    color: AppColors.primaryMint,
-                                  ),
+                                  Icon(Icons.access_time_rounded, size: 16, color: colorScheme.primary),
                                   const SizedBox(width: 8),
-                                  Text(
-                                    _formatTime(_notificationTime),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.textDark,
-                                    ),
-                                  ),
+                                  Text(_formatTime(_notificationTime), style: TextStyle(fontWeight: FontWeight.bold, color: onSurfaceColor)),
                                 ],
                               ),
                             ),
@@ -398,50 +294,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 15),
-
-              _buildSectionTitle("Безопасность"),
+              _buildSectionTitle("Безопасность", textGrey),
               if (_canCheckBiometrics) ...[
                 NeumorphicCard(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 15,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                   borderRadius: 20,
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.fingerprint_rounded,
-                        color: AppColors.primaryMint,
-                        size: 28,
-                      ),
+                      Icon(Icons.fingerprint_rounded, color: colorScheme.primary, size: 28),
                       const SizedBox(width: 20),
                       const Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              "Вход по биометрии",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textDark,
-                              ),
-                            ),
-                            Text(
-                              "FaceID / Отпечаток",
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textGrey,
-                              ),
-                            ),
+                            Text("Вход по биометрии", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            Text("FaceID / Отпечаток", style: TextStyle(fontSize: 12, color: Colors.grey)),
                           ],
                         ),
                       ),
-                      Switch(
-                        value: _useBiometrics,
-                        activeThumbColor: AppColors.primaryMint,
-                        onChanged: _toggleBiometrics,
-                      ),
+                      Switch(value: _useBiometrics, activeThumbColor: colorScheme.primary, onChanged: _toggleBiometrics),
                     ],
                   ),
                 ),
@@ -453,15 +324,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 subtitle: "Придумать новый код доступа",
                 isDestructive: true,
                 onTap: () => _showResetDialog(context),
+                textGrey: textGrey,
               ),
               const SizedBox(height: 15),
-
-              _buildSectionTitle("О приложении"),
+              _buildSectionTitle("О приложении", textGrey),
               _buildSettingsTile(
                 icon: Icons.info_outline_rounded,
                 title: "Версия",
                 subtitle: "1.0.0 (Diploma Release)",
                 onTap: () {},
+                textGrey: textGrey,
               ),
             ],
           ),
@@ -470,17 +342,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(String title, Color textGrey) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 15, left: 10),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-          color: AppColors.textGrey,
-        ),
-      ),
+      child: Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textGrey)),
     );
   }
 
@@ -489,8 +354,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String title,
     required String subtitle,
     required VoidCallback onTap,
+    Widget? trailing,
     bool isDestructive = false,
+    required Color textGrey,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 15),
       child: NeumorphicCard(
@@ -499,39 +367,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
         onTap: onTap,
         child: Row(
           children: [
-            Icon(
-              icon,
-              color: isDestructive
-                  ? AppColors.secondarySalmon
-                  : AppColors.primaryMint,
-              size: 28,
-            ),
+            Icon(icon, color: isDestructive ? Colors.red : colorScheme.primary, size: 28),
             const SizedBox(width: 20),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: isDestructive
-                          ? AppColors.secondarySalmon
-                          : AppColors.textDark,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textGrey,
-                    ),
-                  ),
+                  Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDestructive ? Colors.red : colorScheme.onSurface)),
+                  Text(subtitle, style: TextStyle(fontSize: 12, color: textGrey)),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: AppColors.textGrey),
+            trailing ?? Icon(Icons.chevron_right_rounded, color: textGrey),
           ],
         ),
       ),

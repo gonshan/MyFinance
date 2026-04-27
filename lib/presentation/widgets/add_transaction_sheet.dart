@@ -29,10 +29,12 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
   bool _isIncome = false;
   String _selectedCategory = '';
   DateTime _selectedDate = DateTime.now();
+  late TextEditingController _commentController;
 
   @override
   void initState() {
     super.initState();
+    _commentController = TextEditingController();
     final provider = Provider.of<TransactionProvider>(context, listen: false);
 
     if (provider.categories.isNotEmpty) {
@@ -44,6 +46,7 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
       _selectedCategory = widget.transaction!.category;
       _selectedDate = widget.transaction!.date;
       _amount = _formatAmount(widget.transaction!.amount);
+      _commentController.text = widget.transaction!.comment;
     } else if (widget.scannedAmount != null) {
       _isIncome = false;
       _amount = _formatAmount(widget.scannedAmount!);
@@ -53,6 +56,12 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
         if (exists) _selectedCategory = widget.scannedCategory!;
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
   }
 
   String _formatAmount(double value) {
@@ -89,14 +98,14 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
       lastDate: DateTime.now().add(const Duration(days: 365)),
       builder: (context, child) {
         return Theme(
-          data: ThemeData.light().copyWith(
-            colorScheme: const ColorScheme.light(primary: AppColors.primaryMint),
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(primary: AppColors.primaryMint),
           ),
           child: child!,
         );
       },
     );
-    
+
     if (!mounted) return;
 
     if (picked != null && picked != _selectedDate) {
@@ -119,13 +128,13 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
       if (available < value) {
         final messenger = ScaffoldMessenger.of(context);
         Navigator.pop(context);
-        
+
         messenger.showSnackBar(
           SnackBar(
             backgroundColor: AppColors.secondarySalmon,
             content: const Text(
               "Недостаточно средств! 💸",
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
             ),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -142,6 +151,7 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
       category: _selectedCategory,
       date: _selectedDate,
       isIncome: _isIncome,
+      comment: _commentController.text.trim(),
     );
 
     if (widget.transaction == null) {
@@ -157,12 +167,20 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
   @override
   Widget build(BuildContext context) {
     final categories = context.watch<TransactionProvider>().categories;
+    final colorScheme = Theme.of(context).colorScheme;
+    final brightness = Theme.of(context).brightness;
+    final textGrey = AppColors.textGrey(brightness);
+    final surfaceColor = colorScheme.surface;
+
+    final inputFillColor = brightness == Brightness.light
+        ? Colors.white
+        : Colors.grey[850]!;
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.9,
-      decoration: const BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
       ),
       child: Column(
         children: [
@@ -171,9 +189,9 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: AppColors.textGrey.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(2)
-            )
+              color: textGrey.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
           const SizedBox(height: 20),
           Expanded(
@@ -181,10 +199,10 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
               child: Column(
                 children: [
                   Text(
-                    widget.transaction != null 
-                        ? "Редактирование" 
+                    widget.transaction != null
+                        ? "Редактирование"
                         : (widget.scannedAmount != null ? "Сканированный чек" : "Новая операция"),
-                    style: const TextStyle(fontSize: 16, color: AppColors.textGrey, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 16, color: textGrey, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 15),
                   Row(
@@ -201,7 +219,7 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
                     style: TextStyle(
                       fontSize: 48,
                       fontWeight: FontWeight.bold,
-                      color: _isIncome ? AppColors.primaryMint : AppColors.secondarySalmon
+                      color: _isIncome ? AppColors.primaryMint : AppColors.secondarySalmon,
                     ),
                   ),
                   GestureDetector(
@@ -210,18 +228,18 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
                       margin: const EdgeInsets.symmetric(vertical: 10),
                       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
                       decoration: BoxDecoration(
-                        color: AppColors.surface,
+                        color: surfaceColor,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.textGrey.withValues(alpha: 0.2)),
+                        border: Border.all(color: textGrey.withValues(alpha: 0.2)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.textGrey),
+                          Icon(Icons.calendar_today_rounded, size: 16, color: textGrey),
                           const SizedBox(width: 8),
                           Text(
                             DateFormat('d MMMM yyyy', 'ru').format(_selectedDate),
-                            style: const TextStyle(color: AppColors.textDark, fontWeight: FontWeight.bold),
+                            style: TextStyle(color: colorScheme.onSurface, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
@@ -249,14 +267,14 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: AppColors.surface,
+                                    color: surfaceColor,
                                     shape: BoxShape.circle,
-                                    border: Border.all(color: AppColors.textGrey.withValues(alpha: 0.3)),
+                                    border: Border.all(color: textGrey.withValues(alpha: 0.3)),
                                   ),
-                                  child: const Icon(Icons.settings_rounded, color: AppColors.textGrey),
+                                  child: Icon(Icons.settings_rounded, color: textGrey),
                                 ),
                                 const SizedBox(height: 5),
-                                const Text("Меню", style: TextStyle(fontSize: 10, color: AppColors.textGrey)),
+                                Text("Меню", style: TextStyle(fontSize: 10, color: textGrey)),
                               ],
                             ),
                           );
@@ -274,37 +292,63 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
                                 decoration: BoxDecoration(
                                   color: isSelected
                                       ? (_isIncome ? AppColors.primaryMint : AppColors.secondarySalmon)
-                                      : AppColors.surface,
+                                      : surfaceColor,
                                   shape: BoxShape.circle,
                                   boxShadow: isSelected
                                       ? [
                                           BoxShadow(
-                                            color: (_isIncome ? AppColors.primaryMint : AppColors.secondarySalmon).withValues(alpha: 0.4),
+                                            color: (_isIncome ? AppColors.primaryMint : AppColors.secondarySalmon)
+                                                .withValues(alpha: 0.4),
                                             blurRadius: 10,
-                                            offset: const Offset(0, 5)
+                                            offset: const Offset(0, 5),
                                           )
                                         ]
                                       : [],
                                 ),
                                 child: Icon(
                                   IconData(cat.iconCode, fontFamily: 'MaterialIcons'),
-                                  color: isSelected ? Colors.white : AppColors.textGrey,
+                                  color: isSelected ? Colors.white : textGrey,
                                 ),
                               ),
                               const SizedBox(height: 5),
-                              Text(cat.name, style: TextStyle(fontSize: 10, color: isSelected ? AppColors.textDark : AppColors.textGrey)),
+                              Text(
+                                cat.name,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: isSelected ? colorScheme.onSurface : textGrey,
+                                ),
+                              ),
                             ],
                           ),
                         );
                       },
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: TextField(
+                      controller: _commentController,
+                      style: TextStyle(color: colorScheme.onSurface),
+                      decoration: InputDecoration(
+                        hintText: 'Комментарий (необязательно)',
+                        hintStyle: TextStyle(color: textGrey.withValues(alpha: 0.5)),
+                        filled: true,
+                        fillColor: inputFillColor,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        prefixIcon: Icon(Icons.note_alt_outlined, color: textGrey),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(20),
-                    decoration: const BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+                    decoration: BoxDecoration(
+                      color: surfaceColor,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
                     ),
                     child: Column(
                       children: [
@@ -319,13 +363,14 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
                             onPressed: _saveTransaction,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: _isIncome ? AppColors.primaryMint : AppColors.secondarySalmon,
+                              foregroundColor: _isIncome ? Colors.black : Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 18),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                               elevation: 0,
                             ),
                             child: Text(
-                              widget.transaction == null ? "Сохранить" : "Обновить", 
-                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)
+                              widget.transaction == null ? "Сохранить" : "Обновить",
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                             ),
                           ),
                         ),
@@ -344,39 +389,56 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
 
   Widget _buildTypeButton(String title, bool isIncome) {
     final isSelected = _isIncome == isIncome;
+    final colorScheme = Theme.of(context).colorScheme;
+    final textGrey = AppColors.textGrey(Theme.of(context).brightness);
     return GestureDetector(
       onTap: () => setState(() => _isIncome = isIncome),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? (isIncome ? AppColors.primaryMint : AppColors.secondarySalmon) : AppColors.surface, 
-          borderRadius: BorderRadius.circular(20)
+          color: isSelected
+              ? (isIncome ? AppColors.primaryMint : AppColors.secondarySalmon)
+              : colorScheme.surface,
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
-          title, 
-          style: TextStyle(color: isSelected ? Colors.white : AppColors.textGrey, fontWeight: FontWeight.bold)
+          title,
+          style: TextStyle(
+            color: isSelected ? Colors.white : textGrey,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );
   }
 
   Widget _buildKeyRow(List<String> keys) {
+    final onSurfaceColor = Theme.of(context).colorScheme.onSurface;
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: keys.map((key) => InkWell(
-          onTap: () => _onKeyTap(key),
-          borderRadius: BorderRadius.circular(30),
-          child: SizedBox(
-            width: 70, 
-            height: 70, 
-            child: Center(
-              child: Text(key, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w600, color: AppColors.textDark))
-            )
-          ),
-        )).toList(),
+        children: keys.map((key) {
+          return InkWell(
+            onTap: () => _onKeyTap(key),
+            borderRadius: BorderRadius.circular(30),
+            child: SizedBox(
+              width: 70,
+              height: 70,
+              child: Center(
+                child: Text(
+                  key,
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w600,
+                    color: onSurfaceColor,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }

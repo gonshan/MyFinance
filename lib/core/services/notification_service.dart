@@ -129,7 +129,11 @@ class NotificationService {
       priority: Priority.high,
       icon: '@mipmap/launcher_icon',
     );
-    const NotificationDetails notificationDetails = NotificationDetails(android: androidDetails);
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails();
+    const NotificationDetails notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
     
     await flutterLocalNotificationsPlugin.show(
       888,

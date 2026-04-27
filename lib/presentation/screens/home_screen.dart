@@ -173,8 +173,9 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildBalanceCard(provider.balance, currencyFormat),
               const SizedBox(height: 20),
 
+              // ИСПРАВЛЕН тип List<CurrencyRate>
               if (provider.exchangeRates.isNotEmpty)
-                _buildExchangeRates(provider.exchangeRates),
+  _buildExchangeRates(provider.exchangeRates.cast<CurrencyRate>()),
 
               const SizedBox(height: 20),
               Row(
@@ -516,7 +517,8 @@ class _HomeScreenState extends State<HomeScreen> {
     Color progressColor = AppColors.primaryMint;
 
     if (showLimit) {
-      progress = (spent / cat!.budgetLimit).clamp(0.0, 1.0);
+      // ИСПРАВЛЕНА ненужная проверка на null
+      progress = (spent / cat.budgetLimit).clamp(0.0, 1.0);
       if (progress >= 1.0) {
         progressColor = AppColors.secondarySalmon;
       } else if (progress > 0.75) {
@@ -591,7 +593,8 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  "Лимит: ${cat!.budgetLimit.toStringAsFixed(0)}",
+                  // ИСПРАВЛЕНА ненужная проверка на null
+                  "Лимит: ${cat.budgetLimit.toStringAsFixed(0)}",
                   style: const TextStyle(
                     fontSize: 10,
                     color: AppColors.textGrey,

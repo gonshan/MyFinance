@@ -9,16 +9,16 @@ class CardDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // В реальном приложении здесь стоит добавить маппинг стрингового формата в Barcode.type
-    final barcodeType = Barcode.code128(); 
-
     return Scaffold(
-      backgroundColor: Colors.white, // Белый фон важен для сканеров на кассе
+      backgroundColor: Colors.white,
       appBar: AppBar(
         iconTheme: const IconThemeData(color: Colors.black),
         backgroundColor: Colors.white,
         elevation: 0,
-        title: Text(card.storeName, style: const TextStyle(color: Colors.black)),
+        title: Text(
+          card.storeName, 
+          style: const TextStyle(color: Colors.black),
+        ),
       ),
       body: Center(
         child: Padding(
@@ -26,20 +26,70 @@ class CardDetailScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              BarcodeWidget(
-                barcode: barcodeType,
-                data: card.code,
-                width: double.infinity,
-                height: 150,
-                drawText: true,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      // Исправлено на withValues
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 30,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    BarcodeWidget(
+                      // ИСХАВЛЕНО: используем card.format вместо barcodeFormat
+                      barcode: _mapFormat(card.format),
+                      data: card.code,
+                      width: double.infinity,
+                      height: 160,
+                      drawText: false,
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      card.code,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 40),
-              const Text('Покажите этот код на кассе', style: TextStyle(color: Colors.grey)),
+              Text(
+                'Предъявите штрих-код на кассе',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 14,
+                ),
+              ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  // Маппинг строк из базы в типы штрих-кодов библиотеки
+  Barcode _mapFormat(String format) {
+    switch (format.toLowerCase()) {
+      case 'ean13':
+        return Barcode.ean13();
+      case 'ean8':
+        return Barcode.ean8();
+      case 'code128':
+        return Barcode.code128();
+      case 'qr':
+        return Barcode.qrCode();
+      default:
+        return Barcode.code128();
+    }
   }
 }

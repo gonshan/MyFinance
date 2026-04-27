@@ -1,9 +1,9 @@
-import 'package:flutter/material.dart'; 
+import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/transaction_model.dart';
 import '../models/category_model.dart';
-import '../models/discount_card_model.dart'; // <-- Добавлен импорт модели карт
+import '../models/discount_card_model.dart';
 
 class DatabaseService {
   static final DatabaseService instance = DatabaseService._init();
@@ -13,7 +13,7 @@ class DatabaseService {
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDB('myfinance_v2.db');
+    _database = await _initDB('myfinance_v3.db');
     return _database!;
   }
 
@@ -23,9 +23,9 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 3, // <-- Повысили версию до 3 для добавления новой таблицы
+      version: 3,
       onCreate: _createDB,
-      onUpgrade: _onUpgrade, 
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -35,6 +35,7 @@ class DatabaseService {
     const realType = 'REAL NOT NULL';
     const intType = 'INTEGER NOT NULL';
 
+    // 1. Создаем таблицу Транзакций
     await db.execute('''
       CREATE TABLE ${TransactionFields.table} (
         ${TransactionFields.id} $idType,
@@ -46,6 +47,7 @@ class DatabaseService {
       )
     ''');
 
+    // 2. Создаем таблицу Категорий
     await db.execute('''
       CREATE TABLE ${CategoryFields.table} (
         ${CategoryFields.id} $idType,
@@ -56,7 +58,7 @@ class DatabaseService {
       )
     ''');
 
-    // Таблица для скидочных карт (при чистой установке приложения)
+    // 3. Создаем таблицу Скидочных Карт
     await db.execute('''
       CREATE TABLE ${DiscountCardFields.table} (
         ${DiscountCardFields.id} $idType,
@@ -72,10 +74,10 @@ class DatabaseService {
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
-      await db.execute('ALTER TABLE ${CategoryFields.table} ADD COLUMN ${CategoryFields.budgetLimit} REAL DEFAULT 0.0');
+      await db.execute(
+          'ALTER TABLE ${CategoryFields.table} ADD COLUMN ${CategoryFields.budgetLimit} REAL DEFAULT 0.0');
     }
     if (oldVersion < 3) {
-      // Миграция для версии 3: Добавляем таблицу скидочных карт для существующих пользователей
       await db.execute('''
         CREATE TABLE ${DiscountCardFields.table} (
           ${DiscountCardFields.id} INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -98,13 +100,14 @@ class DatabaseService {
       CategoryModel(name: 'Зарплата', iconCode: Icons.attach_money_rounded.codePoint, isDefault: true),
       CategoryModel(name: 'Подарки', iconCode: Icons.card_giftcard_rounded.codePoint, isDefault: true),
     ];
-
     for (var cat in defaults) {
       await db.insert(CategoryFields.table, cat.toMap());
     }
   }
 
-  // --- Методы для Транзакций ---
+  // ==========================================
+  // --- МЕТОДЫ ДЛЯ ТРАНЗАКЦИЙ ---
+  // ==========================================
 
   Future<int> createTransaction(TransactionModel transaction) async {
     final db = await instance.database;
@@ -113,32 +116,40 @@ class DatabaseService {
 
   Future<List<TransactionModel>> getAllTransactions() async {
     final db = await instance.database;
-    final result = await db.query(TransactionFields.table, orderBy: '${TransactionFields.date} DESC');
+    final result = await db.query(TransactionFields.table,
+        orderBy: '${TransactionFields.date} DESC');
     return result.map((json) => TransactionModel.fromMap(json)).toList();
   }
 
   Future<int> deleteTransaction(int id) async {
     final db = await instance.database;
-    return await db.delete(TransactionFields.table, where: '${TransactionFields.id} = ?', whereArgs: [id]);
+    return await db.delete(TransactionFields.table,
+        where: '${TransactionFields.id} = ?', whereArgs: [id]);
   }
 
   Future<int> updateTransaction(TransactionModel transaction) async {
     final db = await instance.database;
-    return await db.update(TransactionFields.table, transaction.toMap(), where: '${TransactionFields.id} = ?', whereArgs: [transaction.id]);
+    return await db.update(TransactionFields.table, transaction.toMap(),
+        where: '${TransactionFields.id} = ?', whereArgs: [transaction.id]);
   }
 
   Future<double> getBalance() async {
     final db = await instance.database;
-    final incomeResult = await db.rawQuery('SELECT SUM(${TransactionFields.amount}) as total FROM ${TransactionFields.table} WHERE ${TransactionFields.isIncome} = 1');
+
+    final incomeResult = await db.rawQuery(
+        'SELECT SUM(${TransactionFields.amount}) as total FROM ${TransactionFields.table} WHERE ${TransactionFields.isIncome} = 1');
     double income = (incomeResult.first['total'] as num?)?.toDouble() ?? 0.0;
 
-    final expenseResult = await db.rawQuery('SELECT SUM(${TransactionFields.amount}) as total FROM ${TransactionFields.table} WHERE ${TransactionFields.isIncome} = 0');
+    final expenseResult = await db.rawQuery(
+        'SELECT SUM(${TransactionFields.amount}) as total FROM ${TransactionFields.table} WHERE ${TransactionFields.isIncome} = 0');
     double expense = (expenseResult.first['total'] as num?)?.toDouble() ?? 0.0;
 
     return income - expense;
   }
 
-  // --- Методы для Категорий ---
+  // ==========================================
+  // --- МЕТОДЫ ДЛЯ КАТЕГОРИЙ ---
+  // ==========================================
 
   Future<int> createCategory(CategoryModel category) async {
     final db = await instance.database;
@@ -153,15 +164,19 @@ class DatabaseService {
 
   Future<int> deleteCategory(int id) async {
     final db = await instance.database;
-    return await db.delete(CategoryFields.table, where: '${CategoryFields.id} = ?', whereArgs: [id]);
+    return await db.delete(CategoryFields.table,
+        where: '${CategoryFields.id} = ?', whereArgs: [id]);
   }
 
   Future<int> updateCategory(CategoryModel category) async {
     final db = await instance.database;
-    return await db.update(CategoryFields.table, category.toMap(), where: '${CategoryFields.id} = ?', whereArgs: [category.id]);
+    return await db.update(CategoryFields.table, category.toMap(),
+        where: '${CategoryFields.id} = ?', whereArgs: [category.id]);
   }
 
-  // --- Методы для Скидочных Карт ---
+  // ==========================================
+  // --- МЕТОДЫ ДЛЯ СКИДОЧНЫХ КАРТ ---
+  // ==========================================
 
   Future<int> createDiscountCard(DiscountCardModel card) async {
     final db = await instance.database;
@@ -170,17 +185,25 @@ class DatabaseService {
 
   Future<List<DiscountCardModel>> getAllDiscountCards() async {
     final db = await instance.database;
-    final result = await db.query(DiscountCardFields.table, orderBy: '${DiscountCardFields.storeName} ASC');
+    final result = await db.query(DiscountCardFields.table,
+        orderBy: '${DiscountCardFields.storeName} ASC');
     return result.map((json) => DiscountCardModel.fromMap(json)).toList();
   }
 
   Future<int> deleteDiscountCard(int id) async {
     final db = await instance.database;
-    return await db.delete(DiscountCardFields.table, where: '${DiscountCardFields.id} = ?', whereArgs: [id]);
+    return await db.delete(DiscountCardFields.table,
+        where: '${DiscountCardFields.id} = ?', whereArgs: [id]);
   }
 
   Future<int> updateDiscountCard(DiscountCardModel card) async {
     final db = await instance.database;
-    return await db.update(DiscountCardFields.table, card.toMap(), where: '${DiscountCardFields.id} = ?', whereArgs: [card.id]);
+    return await db.update(DiscountCardFields.table, card.toMap(),
+        where: '${DiscountCardFields.id} = ?', whereArgs: [card.id]);
+  }
+
+  Future<void> close() async {
+    final db = await instance.database;
+    db.close();
   }
 }

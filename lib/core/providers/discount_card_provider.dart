@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../data/local/database_service.dart';
 import '../../data/models/discount_card_model.dart';
+import '../../data/local/database_service.dart';
 
-class DiscountCardProvider extends ChangeNotifier {
+class DiscountCardProvider with ChangeNotifier {
   List<DiscountCardModel> _cards = [];
   bool _isLoading = false;
 
@@ -12,33 +12,28 @@ class DiscountCardProvider extends ChangeNotifier {
   Future<void> loadCards() async {
     _isLoading = true;
     notifyListeners();
+    
+    // Исправлено: теперь метод называется точно так же, как в DatabaseService
     _cards = await DatabaseService.instance.getAllDiscountCards();
+    
     _isLoading = false;
     notifyListeners();
   }
 
-  Future<void> addCard(String name, String code, String format, Color color) async {
-    final newCard = DiscountCardModel(
-      storeName: name,
-      code: code,
-      format: format,
-      color: color.value,
-    );
-    
-    final id = await DatabaseService.instance.createDiscountCard(newCard);
-    _cards.add(DiscountCardModel(
-      id: id,
-      storeName: name,
-      code: code,
-      format: format,
-      color: color.value,
-    ));
-    notifyListeners();
+  Future<void> addCard(DiscountCardModel card) async {
+    await DatabaseService.instance.createDiscountCard(card);
+    await loadCards();
   }
 
   Future<void> deleteCard(int id) async {
     await DatabaseService.instance.deleteDiscountCard(id);
-    _cards.removeWhere((element) => element.id == id);
-    notifyListeners();
+    await loadCards();
+  }
+
+  Future<void> updateCard(DiscountCardModel card) async {
+    if (card.id != null) {
+      await DatabaseService.instance.updateDiscountCard(card);
+      await loadCards();
+    }
   }
 }

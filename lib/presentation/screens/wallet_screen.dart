@@ -1,60 +1,70 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/theme.dart';
 import '../../core/providers/discount_card_provider.dart';
 import 'add_card_screen.dart';
 import 'card_detail_screen.dart';
 
-class WalletScreen extends StatelessWidget {
+class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final provider = Provider.of<DiscountCardProvider>(context);
+  State<WalletScreen> createState() => _WalletScreenState();
+}
 
+class _WalletScreenState extends State<WalletScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() => context.read<DiscountCardProvider>().loadCards());
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Мои карты', style: TextStyle(color: AppColors.textDark, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline, color: AppColors.primaryMint),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddCardScreen())),
-          )
-        ],
+      appBar: AppBar(title: const Text('Мои карты')),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddCardScreen())),
+        child: const Icon(Icons.add),
       ),
-      body: provider.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : provider.cards.isEmpty
-              ? const Center(child: Text('Кошелек пуст. Добавьте первую карту!'))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: provider.cards.length,
-                  itemBuilder: (context, index) {
-                    final card = provider.cards[index];
-                    return GestureDetector(
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CardDetailScreen(card: card))),
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        height: 100,
-                        decoration: BoxDecoration(
-                          color: Color(card.color),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(color: AppColors.shadowDark.withValues(alpha: 0.5), blurRadius: 10, offset: const Offset(0, 5))
-                          ]
-                        ),
-                        child: Center(
-                          child: Text(
-                            card.storeName,
-                            style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-                          ),
-                        ),
+      body: Consumer<DiscountCardProvider>(
+        builder: (context, provider, _) {
+          if (provider.isLoading) return const Center(child: CircularProgressIndicator());
+          if (provider.cards.isEmpty) return const Center(child: Text('Карт пока нет'));
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: provider.cards.length,
+            itemBuilder: (context, index) {
+              final card = provider.cards[index];
+              return GestureDetector(
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CardDetailScreen(card: card))),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Color(card.color), // Теперь getter color существует
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
-                    );
-                  },
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(card.storeName, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      const Icon(Icons.credit_card, color: Colors.white70),
+                    ],
+                  ),
                 ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

@@ -69,10 +69,6 @@ class CardDetailScreen extends StatelessWidget {
                 if (safeFormat != card.format)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      'Формат изменён на $safeFormat для отображения',
-                      style: TextStyle(fontSize: 12, color: textGrey),
-                    ),
                   ),
                 const SizedBox(height: 40),
                 Text(

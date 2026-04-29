@@ -25,5 +25,7 @@ void main() async {
     ),
   );
 
-  runApp(MyApp(key: myAppKey, isFirstRun: isFirstRun, initialDarkMode: isDarkMode));
+  runApp(
+    MyApp(key: myAppKey, isFirstRun: isFirstRun, initialDarkMode: isDarkMode),
+  );
 }

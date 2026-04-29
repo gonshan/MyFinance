@@ -29,6 +29,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       "color": const Color(0xFF5E63B6),
     },
     {
+      "title": "Дисконтные карты",
+      "desc":
+          "Храните все свои скидочные карты в одном месте. Сканируйте штрих‑коды и предъявляйте на кассе.",
+      "icon": Icons.credit_card_rounded,
+      "color": const Color(0xFF00BCD4),
+    },
+    {
       "title": "Бюджетирование",
       "desc": "Устанавливайте лимиты на категории и избегайте перерасхода.",
       "icon": Icons.pie_chart_rounded,
@@ -36,7 +43,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     },
     {
       "title": "Безопасность",
-      "desc": "Ваши финансы под надежной защитой ПИН-кода и биометрии.",
+      "desc":
+          "Ваши финансы под надежной защитой ПИН-кода и биометрии.",
       "icon": Icons.security_rounded,
       "color": const Color(0xFFFACD60),
     },

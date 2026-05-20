@@ -3,7 +3,6 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
 import '../../data/models/discount_card_model.dart';
 import '../../core/providers/discount_card_provider.dart';
-import '../../core/utils/brand_helper.dart';
 import '../../core/theme.dart';
 
 class AddCardScreen extends StatefulWidget {
@@ -73,12 +72,7 @@ class _AddCardScreenState extends State<AddCardScreen> {
     setState(() {
       _codeController.text = code;
       _selectedFormat = format;
-
-      final brand = BrandHelper.identifyBrand(code);
-      if (brand != null) {
-        _nameController.text = brand['name'] as String;
-        _selectedColor = Color(brand['color'] as int);
-      }
+      // Ручной ввод названия магазина – пользователь заполнит сам
     });
   }
 
@@ -115,7 +109,6 @@ class _AddCardScreenState extends State<AddCardScreen> {
       borderSide: BorderSide.none,
     );
 
-    // Тема для DropdownButtonFormField, чтобы текст был контрастным
     final dropdownTheme = Theme.of(context).copyWith(
       textTheme: Theme.of(context).textTheme.copyWith(
         titleMedium: TextStyle(color: colorScheme.onSurface, fontSize: 16),
@@ -279,7 +272,7 @@ class _AddCardScreenState extends State<AddCardScreen> {
   }
 }
 
-/// Внутренний экран сканера штрих-кода
+// Внутренний экран сканера штрих-кода (без изменений)
 class _BarcodeScannerScreen extends StatefulWidget {
   const _BarcodeScannerScreen();
 

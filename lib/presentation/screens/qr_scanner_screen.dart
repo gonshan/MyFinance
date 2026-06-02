@@ -119,16 +119,17 @@ class _QRScannerScreenState extends State<QRScannerScreen>
                 ),
                 const Spacer(),
                 const Text(
-                  "Наведите камеру на QR-код",
+                  "Наведите камеру на QR-код чека",
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
+                  textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 10),
                 const Text(
-                  "Поиск чека...",
+                  "Поддерживаются: СККО и Е-Плюс (РБ)",
                   style: TextStyle(color: Colors.white70, fontSize: 12),
                 ),
                 const SizedBox(height: 100),
@@ -156,174 +157,340 @@ class _QRScannerScreenState extends State<QRScannerScreen>
 
     if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 500), () async {
-      Map<String, dynamic> result = {};
+      final Map<String, dynamic> result = {};
       bool recognized = false;
 
-      // 1. JSON
-      if (rawData.startsWith('{')) {
-        try {
-          final decoded = jsonDecode(rawData);
-          if (decoded is Map<String, dynamic>) {
-            if (decoded.containsKey('sum')) {
-              result['amount'] = decoded['sum'].toString();
-              recognized = true;
-            } else if (decoded.containsKey('s')) {
-              result['amount'] = decoded['s'].toString();
-              recognized = true;
-            }
-            if (decoded.containsKey('cat')) {
-              result['category'] = decoded['cat'].toString();
-            } else if (decoded.containsKey('c')) {
-              result['category'] = decoded['c'].toString();
-            }
-            if (decoded.containsKey('date')) {
-              result['date'] = decoded['date'].toString();
-            } else if (decoded.containsKey('d')) {
-              result['date'] = decoded['d'].toString();
-            }
-          }
-        } catch (_) {}
-      }
+      try {
+        debugPrint('📱 Raw QR: $rawData');
+        String decodedText = rawData;
 
-      // 2. skko.by
-      if (!recognized &&
-          rawData.startsWith('http') &&
-          rawData.contains('skko.by')) {
-        try {
+        // 1. Попытка декодировать hex
+        if (RegExp(r'^[0-9a-fA-F]{16,}$').hasMatch(rawData)) {
+          try {
+            final bytes = <int>[];
+            for (int i = 0; i < rawData.length; i += 2) {
+              bytes.add(int.parse(rawData.substring(i, i + 2), radix: 16));
+            }
+            decodedText = String.fromCharCodes(bytes);
+            debugPrint('🔄 Hex decoded: $decodedText');
+          } catch (_) {
+            debugPrint('⚠️ Hex decoding failed');
+          }
+        }
+
+        // 2. Проверка на JSON
+        if (decodedText.startsWith('{')) {
+          try {
+            final decoded = jsonDecode(decodedText);
+            if (decoded is Map<String, dynamic>) {
+              if (decoded.containsKey('sum')) {
+                result['amount'] = decoded['sum'].toString();
+                recognized = true;
+              } else if (decoded.containsKey('s')) {
+                result['amount'] = decoded['s'].toString();
+                recognized = true;
+              }
+              if (decoded.containsKey('cat')) {
+                result['category'] = decoded['cat'].toString();
+              } else if (decoded.containsKey('c')) {
+                result['category'] = decoded['c'].toString();
+              }
+              if (decoded.containsKey('date')) {
+                result['date'] = decoded['date'].toString();
+              } else if (decoded.containsKey('d')) {
+                result['date'] = decoded['d'].toString();
+              }
+            }
+          } catch (_) {
+            debugPrint('⚠️ JSON parsing failed');
+          }
+        }
+
+        // 3. Обработка Е-Плюс
+        if (!recognized && decodedText.contains('eplus.by')) {
+          debugPrint('🔍 Обнаружен чек Е-Плюс');
+
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Загружаем данные чека из СККО...'),
+                content: Text('📡 Загружаем чек из Е-Плюс...'),
+                backgroundColor: AppColors.primaryMint,
                 duration: Duration(seconds: 2),
               ),
             );
           }
-          final response = await http.get(Uri.parse(rawData));
-          if (response.statusCode == 200) {
-            var document = parser.parse(response.body);
-            var sumElement =
-                document.querySelector('.total-sum') ??
-                document.querySelector('.sum');
-            if (sumElement != null) {
-              String sumText = sumElement.text
-                  .replaceAll(RegExp(r'[^0-9.,]'), '')
-                  .replaceAll(',', '.');
-              if (sumText.isNotEmpty) {
-                result['amount'] = sumText;
+
+          try {
+            final response = await http
+                .get(
+                  Uri.parse(decodedText.trim()),
+                  headers: {
+                    'User-Agent':
+                        'Mozilla/5.0 (Linux; Android 10) MyFinance/1.0',
+                    'Accept': 'text/html,application/xhtml+xml',
+                  },
+                )
+                .timeout(const Duration(seconds: 10));
+
+            if (response.statusCode == 200) {
+              debugPrint('✅ HTML получен: ${response.body.length} символов');
+
+              final document = parser.parse(response.body);
+
+              // Поиск суммы
+              final sumPatterns = [
+                RegExp(
+                  r'(?:Итого|Сумма|Total|Всего)[^0-9]*?([0-9]+[.,][0-9]{2})',
+                  caseSensitive: false,
+                ),
+                RegExp(r'([0-9]+[.,][0-9]{2})\s*BYN'),
+                RegExp(r'([0-9]+[.,][0-9]{2})\s*руб'),
+              ];
+
+              for (final pattern in sumPatterns) {
+                final match = pattern.firstMatch(document.body?.text ?? '');
+                if (match != null) {
+                  String sumStr = match.group(1)!.replaceAll(',', '.');
+                  double? amount = double.tryParse(sumStr);
+                  if (amount != null && amount > 0) {
+                    // Обработка копеек (1698 → 16.98)
+                    if (amount > 1000) amount /= 100;
+                    result['amount'] = amount.toStringAsFixed(2);
+                    recognized = true;
+                    debugPrint('💰 Сумма: ${result['amount']} BYN');
+                    break;
+                  }
+                }
+              }
+
+              // Поиск даты
+              final datePattern = RegExp(r'(\d{2})\.(\d{2})\.(\d{4})');
+              final dateMatch = datePattern.firstMatch(
+                document.body?.text ?? '',
+              );
+              if (dateMatch != null) {
+                try {
+                  final date = DateTime(
+                    int.parse(dateMatch.group(3)!),
+                    int.parse(dateMatch.group(2)!),
+                    int.parse(dateMatch.group(1)!),
+                  );
+                  result['date'] = date.toIso8601String();
+                  debugPrint('📅 Дата: ${date.toLocal()}');
+                } catch (_) {}
+              }
+
+              // Поиск магазина
+              final shopPatterns = [
+                RegExp(
+                  r'(Евроопт|Соседи|Гиппо|Виталюр|Март|Green|Санта|Корона)',
+                  caseSensitive: false,
+                ),
+              ];
+              for (final pattern in shopPatterns) {
+                final match = pattern.firstMatch(document.body?.text ?? '');
+                if (match != null) {
+                  result['category'] = _guessCategory(match.group(0)!);
+                  break;
+                }
+              }
+            } else {
+              debugPrint('❌ HTTP ${response.statusCode}');
+            }
+          } catch (e) {
+            debugPrint('❌ Ошибка HTTP: $e');
+          }
+        }
+
+        // 4. Обработка СККО
+        if (!recognized) {
+          final uri = Uri.tryParse(decodedText.trim());
+          if (uri != null && uri.host.contains('skko.by') && uri.hasQuery) {
+            debugPrint('🔍 Обнаружен чек СККО');
+
+            final query = uri.queryParameters;
+            debugPrint('📋 Параметры: $query');
+
+            // Сумма
+            String? sumStr = query['s'] ?? query['sum'];
+            if (sumStr != null) {
+              double? amount = double.tryParse(sumStr.replaceAll(',', '.'));
+              if (amount != null && amount > 0) {
+                // Обработка копеек (1698 → 16.98)
+                if (amount > 1000) amount /= 100;
+                result['amount'] = amount.toStringAsFixed(2);
                 recognized = true;
+                debugPrint('💰 Сумма: ${result['amount']} BYN');
               }
             }
-            var dateElement =
-                document.querySelector('.receipt-date') ??
-                document.querySelector('.date');
-            if (dateElement != null) {
-              String dateText = dateElement.text.trim();
-              DateTime? parsedDate = DateTime.tryParse(dateText);
-              if (parsedDate != null) {
-                result['date'] = parsedDate.toIso8601String();
+
+            // Дата
+            String? dateStr = query['t'];
+            if (dateStr != null) {
+              final match = RegExp(
+                r'(\d{4})(\d{2})(\d{2})T?(\d{2})?(\d{2})?',
+              ).firstMatch(dateStr);
+              if (match != null) {
+                try {
+                  final date = DateTime(
+                    int.parse(match.group(1)!),
+                    int.parse(match.group(2)!),
+                    int.parse(match.group(3)!),
+                    match.group(4) != null ? int.parse(match.group(4)!) : 0,
+                    match.group(5) != null ? int.parse(match.group(5)!) : 0,
+                  );
+                  result['date'] = date.toIso8601String();
+                  debugPrint('📅 Дата: ${date.toLocal()}');
+                } catch (_) {}
               }
             }
-            var shopElement =
-                document.querySelector('.shop-name') ??
-                document.querySelector('.organization');
-            if (shopElement != null) {
-              result['category'] = _guessCategory(shopElement.text.trim());
+          }
+        }
+
+        // 5. Fallback: поиск чисел в тексте
+        if (!recognized) {
+          final decimalMatches = RegExp(
+            r'(\d+[.,]\d{2})',
+          ).allMatches(decodedText);
+          final candidates = <double>[];
+          for (final m in decimalMatches) {
+            final val = double.tryParse(m.group(1)!.replaceAll(',', '.'));
+            if (val != null && val > 0.01 && val < 50000) {
+              candidates.add(val);
             }
           }
-        } catch (e) {
-          debugPrint('Ошибка СККО: $e');
-        }
-      }
-
-      // 3. Текстовый QR – ищем числа с двумя десятичными знаками (копейки)
-      if (!recognized) {
-        final decimalMatches = RegExp(r'(\d+[.,]\d{2})').allMatches(rawData);
-        List<double> candidates = [];
-        for (final m in decimalMatches) {
-          double val = double.tryParse(m.group(1)!.replaceAll(',', '.')) ?? 0.0;
-          if (val > 0 && val < 100000) {
-            candidates.add(val);
+          if (candidates.isNotEmpty) {
+            candidates.sort();
+            double amount = candidates.last;
+            if (amount > 1000) amount /= 100;
+            result['amount'] = amount.toStringAsFixed(2);
+            recognized = true;
+            debugPrint('💰 Сумма из текста: ${result['amount']} BYN');
           }
         }
-        if (candidates.isNotEmpty) {
-          candidates.sort();
-          result['amount'] = candidates.last.toStringAsFixed(2);
-          recognized = true;
+
+        // 6. Категория по умолчанию
+        if (result['category'] == null) {
+          result['category'] = _guessCategory(decodedText);
         }
+      } catch (e, stack) {
+        debugPrint('❌ Ошибка: $e\n$stack');
       }
 
-      // 4. Дата
-      if (!recognized) {
-        final dateMatch = RegExp(r'(\d{2}\.\d{2}\.\d{4})').firstMatch(rawData);
-        if (dateMatch != null) {
-          final parts = dateMatch.group(1)!.split('.');
-          final date = DateTime(
-            int.parse(parts[2]),
-            int.parse(parts[1]),
-            int.parse(parts[0]),
-          );
-          result['date'] = date.toIso8601String();
-        }
-      }
-
-      // 5. Категория
-      result['category'] = _guessCategory(rawData);
-
+      // Возвращаем результат
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              recognized
-                  ? 'Данные чека распознаны'
-                  : 'Не удалось извлечь сумму, заполните вручную',
+        if (recognized) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ Чек распознан: ${result['amount']} BYN'),
+              backgroundColor: AppColors.primaryMint,
+              duration: const Duration(seconds: 2),
             ),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        Navigator.pop(context, result);
+          );
+          Navigator.pop(context, result);
+        } else {
+          // Показываем диалог с ручным вводом
+          _showManualInputDialog(result);
+        }
       }
 
       _isProcessing = false;
     });
   }
 
+  void _showManualInputDialog(Map<String, dynamic> partialData) {
+    final amountController = TextEditingController(
+      text: partialData['amount'] ?? '',
+    );
+    final category = partialData['category'] ?? 'Покупки';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface(Theme.of(context).brightness),
+        title: const Text('QR-код распознан'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Не удалось автоматически извлечь сумму'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: amountController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Сумма (BYN)',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.attach_money),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.pop(context, {});
+            },
+            child: const Text('Отмена'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final amount = amountController.text.trim();
+              if (amount.isNotEmpty) {
+                Navigator.pop(ctx);
+                Navigator.pop(context, {
+                  'amount': amount,
+                  'category': category,
+                  'date': DateTime.now().toIso8601String(),
+                });
+              }
+            },
+            child: const Text('Продолжить'),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _guessCategory(String text) {
     final t = text.toLowerCase();
-    if (t.contains('евроопт') ||
-        t.contains('euroopt') ||
-        t.contains('соседи') ||
-        t.contains('sosedi') ||
-        t.contains('гиппо') ||
-        t.contains('gippo') ||
-        t.contains('green') ||
-        t.contains('март') ||
-        t.contains('продукты') ||
-        t.contains('пятёрочка') ||
-        t.contains('лена') ||
-        t.contains('виталюр')) {
+    if (t.containsAny([
+      'евроопт',
+      'соседи',
+      'гиппо',
+      'виталюр',
+      'март',
+      'green',
+      'продукты',
+      'еда',
+    ]))
       return 'Еда';
-    }
-    if (t.contains('яндекс') ||
-        t.contains('yandex') ||
-        t.contains('uber') ||
-        t.contains('такси') ||
-        t.contains('транспорт') ||
-        t.contains('автобус')) {
+    if (t.containsAny(['такси', 'транспорт', 'заправка', 'автобус']))
       return 'Транспорт';
-    }
-    if (t.contains('аптека') ||
-        t.contains('pharma') ||
-        t.contains('здоровье') ||
-        t.contains('apteka')) {
-      return 'Здоровье';
-    }
-    if (t.contains('одежда') ||
-        t.contains('zara') ||
-        t.contains('марк') ||
-        t.contains('clothes') ||
-        t.contains('fashion')) {
+    if (t.containsAny(['аптека', 'здоровье', 'лекар'])) return 'Здоровье';
+    if (t.containsAny([
+      'одежда',
+      'zara',
+      'марк',
+      'clothes',
+      'fashion',
+      'обувь',
+    ]))
       return 'Одежда';
-    }
+    if (t.containsAny([
+      'дом',
+      'ремонт',
+      'строй',
+      'мебель',
+      'электрик',
+      'сантех',
+      'хозяй',
+      'быт',
+      '220',
+      'omni',
+    ]))
+      return 'Дом';
     return 'Покупки';
   }
 
@@ -342,6 +509,7 @@ class _ScannerOverlayPainter extends CustomPainter {
     final paint = Paint()
       ..color = Colors.black.withValues(alpha: 0.7)
       ..style = PaintingStyle.fill;
+
     final path = Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
     final cutout = Path()
       ..addRRect(
@@ -362,4 +530,9 @@ class _ScannerOverlayPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+extension StringContainsAny on String {
+  bool containsAny(List<String> substrings) =>
+      substrings.any((sub) => contains(sub));
 }
